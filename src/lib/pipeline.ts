@@ -1,6 +1,6 @@
 import type { StageName } from '@/types';
 
-export const STAGES: StageName[] = [
+export const STAGE_ORDER: StageName[] = [
   'Applied',
   'Screening',
   'Interview',
@@ -9,33 +9,27 @@ export const STAGES: StageName[] = [
   'Rejected',
 ];
 
-// Alias for pages that import ALL_STAGES
-export const ALL_STAGES = STAGES;
-
 export const STAGE_COLORS: Record<StageName, string> = {
-  Applied: '#2563eb',
-  Screening: '#7c3aed',
-  Interview: '#d97706',
-  Offer: '#059669',
-  Hired: '#16a34a',
-  Rejected: '#dc2626',
+  Applied: '#6366f1',
+  Screening: '#f59e0b',
+  Interview: '#3b82f6',
+  Offer: '#8b5cf6',
+  Hired: '#10b981',
+  Rejected: '#ef4444',
 };
 
 export const STAGE_BG: Record<StageName, string> = {
-  Applied: '#dbeafe',
-  Screening: '#ede9fe',
-  Interview: '#fef3c7',
-  Offer: '#d1fae5',
-  Hired: '#dcfce7',
+  Applied: '#ede9fe',
+  Screening: '#fef3c7',
+  Interview: '#dbeafe',
+  Offer: '#ede9fe',
+  Hired: '#d1fae5',
   Rejected: '#fee2e2',
 };
 
-export const PIPELINE_STAGES: Record<string, StageName[]> = {
-  Standard: ['Applied', 'Screening', 'Interview', 'Offer', 'Hired', 'Rejected'],
-  Technical: ['Applied', 'Screening', 'Interview', 'Offer', 'Hired', 'Rejected'],
-  Executive: ['Applied', 'Screening', 'Interview', 'Offer', 'Hired', 'Rejected'],
-};
-
-export function getStagesForPipeline(pipelineType?: string): StageName[] {
-  return PIPELINE_STAGES[pipelineType ?? 'Standard'] ?? STAGES;
+export function getPipeline(jobId: string, candidates: import('@/types').Candidate[]) {
+  return STAGE_ORDER.map((stage) => ({
+    stage,
+    candidates: candidates.filter((c) => c.jobId === jobId && c.stage === stage),
+  }));
 }
