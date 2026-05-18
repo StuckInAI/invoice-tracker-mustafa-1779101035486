@@ -1,149 +1,149 @@
-import { useState, useMemo } from 'react';
-import { Link } from 'react-router-dom';
-import { Plus, Search, Upload, ChevronRight } from 'lucide-react';
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Plus, Upload, Search } from 'lucide-react';
 import { useAts } from '@/hooks/useAtsStore';
-import PageHeader from '@/components/PageHeader';
-import StageBadge from '@/components/StageBadge';
 import { ALL_STAGES } from '@/lib/pipeline';
+import StageBadge from '@/components/StageBadge';
+import PageHeader from '@/components/PageHeader';
+import EmptyState from '@/components/EmptyState';
 import type { StageName } from '@/types';
 
 export default function CandidatesPage() {
+  const navigate = useNavigate();
   const { candidates, jobs } = useAts();
   const [search, setSearch] = useState('');
-  const [stageFilter, setStageFilter] = useState<string>('All');
-  const [jobFilter, setJobFilter] = useState<string>('All');
+  const [stageFilter, setStageFilter] = useState<StageName | 'All'>('All');
+  const [jobFilter, setJobFilter] = useState('All');
 
-  const jobMap = useMemo(() => Object.fromEntries(jobs.map((j) => [j.id, j])), [jobs]);
+  const filtered = candidates.filter((c) => {
+    const matchSearch =
+      !search ||
+      c.name.toLowerCase().includes(search.toLowerCase()) ||
+      c.email.toLowerCase().includes(search.toLowerCase());
+    const matchStage = stageFilter === 'All' || c.stage === stageFilter;
+    const matchJob = jobFilter === 'All' || c.jobId === jobFilter;
+    return matchSearch && matchStage && matchJob;
+  });
 
-  const filtered = useMemo(() => {
-    return candidates.filter((c) => {
-      const matchSearch =
-        c.name.toLowerCase().includes(search.toLowerCase()) ||
-        c.email.toLowerCase().includes(search.toLowerCase());
-      const matchStage = stageFilter === 'All' || c.stage === stageFilter;
-      const matchJob = jobFilter === 'All' || c.jobId === jobFilter;
-      return matchSearch && matchStage && matchJob;
-    });
-  }, [candidates, search, stageFilter, jobFilter]);
+  const btnBase: React.CSSProperties = {
+    padding: '7px 14px',
+    borderRadius: 7,
+    border: 'none',
+    cursor: 'pointer',
+    fontSize: 13,
+    fontWeight: 500,
+  };
 
   return (
     <div>
       <PageHeader
         title="Candidates"
-        subtitle={`${candidates.length} total candidates`}
+        subtitle={`${candidates.length} total`}
         actions={
           <>
-            <Link to="/candidates/import" style={{
-              display: 'inline-flex', alignItems: 'center', gap: 6,
-              padding: '8px 14px', borderRadius: 8,
-              border: '1px solid var(--color-border)', background: 'white',
-              fontSize: 13, fontWeight: 500, color: 'var(--color-text)', textDecoration: 'none',
-            }}>
+            <button
+              onClick={() => navigate('/candidates/import')}
+              style={{ ...btnBase, background: 'var(--color-surface-alt)', color: 'var(--color-text)', border: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', gap: 6 }}
+            >
               <Upload size={14} /> Import CSV
-            </Link>
-            <Link to="/candidates/new" style={{
-              display: 'inline-flex', alignItems: 'center', gap: 6,
-              padding: '8px 14px', borderRadius: 8,
-              background: 'var(--color-primary)', color: 'white',
-              fontSize: 13, fontWeight: 600, textDecoration: 'none',
-            }}>
-              <Plus size={14} /> Add candidate
-            </Link>
+            </button>
+            <button
+              onClick={() => navigate('/candidates/new')}
+              style={{ ...btnBase, background: 'var(--color-primary)', color: 'white', display: 'flex', alignItems: 'center', gap: 6 }}
+            >
+              <Plus size={14} /> Add Candidate
+            </button>
           </>
         }
       />
 
       {/* Filters */}
-      <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap' }}>
-        <div style={{ position: 'relative', flex: 1, minWidth: 200, maxWidth: 320 }}>
-          <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)' }} />
+      <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+        <div style={{ position: 'relative', flex: '1 1 200px', minWidth: 0 }}>
+          <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)', pointerEvents: 'none' }} />
           <input
-            placeholder="Search candidates…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search candidates..."
             style={{
-              width: '100%', padding: '8px 12px 8px 32px',
-              border: '1px solid var(--color-border)', borderRadius: 8, fontSize: 13, outline: 'none',
+              width: '100%', paddingLeft: 32, padding: '8px 10px 8px 32px',
+              border: '1px solid var(--color-border)',
+              borderRadius: 7, fontSize: 13,
+              background: 'var(--color-surface)',
+              color: 'var(--color-text)',
+              boxSizing: 'border-box',
             }}
           />
         </div>
         <select
           value={stageFilter}
-          onChange={(e) => setStageFilter(e.target.value)}
-          style={{
-            padding: '8px 12px', border: '1px solid var(--color-border)',
-            borderRadius: 8, fontSize: 13, outline: 'none', background: 'white', color: 'var(--color-text)',
-          }}
+          onChange={(e) => setStageFilter(e.target.value as StageName | 'All')}
+          style={{ padding: '8px 10px', borderRadius: 7, border: '1px solid var(--color-border)', fontSize: 13, background: 'var(--color-surface)', color: 'var(--color-text)' }}
         >
-          <option value="All">All stages</option>
+          <option value="All">All Stages</option>
           {ALL_STAGES.map((s) => <option key={s} value={s}>{s}</option>)}
         </select>
         <select
           value={jobFilter}
           onChange={(e) => setJobFilter(e.target.value)}
-          style={{
-            padding: '8px 12px', border: '1px solid var(--color-border)',
-            borderRadius: 8, fontSize: 13, outline: 'none', background: 'white', color: 'var(--color-text)',
-          }}
+          style={{ padding: '8px 10px', borderRadius: 7, border: '1px solid var(--color-border)', fontSize: 13, background: 'var(--color-surface)', color: 'var(--color-text)' }}
         >
-          <option value="All">All jobs</option>
+          <option value="All">All Jobs</option>
           {jobs.map((j) => <option key={j.id} value={j.id}>{j.title}</option>)}
         </select>
       </div>
 
-      {/* Table */}
-      <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 12, overflow: 'hidden' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr style={{ background: 'var(--color-surface-alt)', borderBottom: '1px solid var(--color-border)' }}>
-              {['Name', 'Email', 'Job', 'Stage', 'Source', 'Added', ''].map((h) => (
-                <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: 'var(--color-text-muted)', whiteSpace: 'nowrap' }}>{h}</th>
+      {filtered.length === 0 ? (
+        <EmptyState
+          title="No candidates found"
+          description="Try adjusting your filters or add a new candidate."
+          action={
+            <button
+              onClick={() => navigate('/candidates/new')}
+              style={{ ...btnBase, background: 'var(--color-primary)', color: 'white' }}
+            >
+              Add Candidate
+            </button>
+          }
+        />
+      ) : (
+        <div style={{ background: 'var(--color-surface)', borderRadius: 10, border: '1px solid var(--color-border)', overflow: 'hidden' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+            <thead>
+              <tr style={{ background: 'var(--color-surface-alt)' }}>
+                <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, fontSize: 12, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Name</th>
+                <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, fontSize: 12, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Email</th>
+                <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, fontSize: 12, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Job</th>
+                <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, fontSize: 12, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Stage</th>
+                <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, fontSize: 12, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Applied</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((c, i) => (
+                <tr
+                  key={c.id}
+                  onClick={() => navigate(`/candidates/${c.id}`)}
+                  style={{
+                    borderTop: i === 0 ? 'none' : '1px solid var(--color-border)',
+                    cursor: 'pointer',
+                    transition: 'background 0.1s',
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--color-surface-alt)')}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                >
+                  <td style={{ padding: '12px 16px', fontWeight: 500 }}>{c.name}</td>
+                  <td style={{ padding: '12px 16px', color: 'var(--color-text-muted)' }}>{c.email}</td>
+                  <td style={{ padding: '12px 16px', color: 'var(--color-text-muted)' }}>
+                    {jobs.find((j) => j.id === c.jobId)?.title ?? c.jobTitle ?? '—'}
+                  </td>
+                  <td style={{ padding: '12px 16px' }}><StageBadge stage={c.stage} /></td>
+                  <td style={{ padding: '12px 16px', color: 'var(--color-text-muted)' }}>{new Date(c.createdAt).toLocaleDateString()}</td>
+                </tr>
               ))}
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.length === 0 && (
-              <tr>
-                <td colSpan={7} style={{ padding: '40px', textAlign: 'center', color: 'var(--color-text-muted)', fontSize: 13 }}>No candidates found.</td>
-              </tr>
-            )}
-            {filtered.map((c) => (
-              <tr key={c.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
-                <td style={{ padding: '12px 16px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <div style={{
-                      width: 32, height: 32, borderRadius: '50%',
-                      background: 'var(--color-primary-soft)', color: 'var(--color-primary)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontWeight: 700, fontSize: 13, flexShrink: 0,
-                    }}>{c.name.charAt(0)}</div>
-                    <span style={{ fontWeight: 600, fontSize: 13 }}>{c.name}</span>
-                  </div>
-                </td>
-                <td style={{ padding: '12px 16px', fontSize: 12, color: 'var(--color-text-muted)' }}>{c.email}</td>
-                <td style={{ padding: '12px 16px', fontSize: 12, color: 'var(--color-text-muted)' }}>
-                  {c.jobId ? jobMap[c.jobId]?.title ?? '—' : '—'}
-                </td>
-                <td style={{ padding: '12px 16px' }}><StageBadge stage={c.stage} /></td>
-                <td style={{ padding: '12px 16px', fontSize: 12, color: 'var(--color-text-muted)' }}>{c.source ?? '—'}</td>
-                <td style={{ padding: '12px 16px', fontSize: 12, color: 'var(--color-text-muted)' }}>
-                  {new Date(c.createdAt).toLocaleDateString()}
-                </td>
-                <td style={{ padding: '12px 16px' }}>
-                  <Link to={`/candidates/${c.id}`} style={{
-                    display: 'inline-flex', alignItems: 'center', gap: 4,
-                    padding: '5px 10px', borderRadius: 6,
-                    background: 'var(--color-primary-soft)', color: 'var(--color-primary)',
-                    fontSize: 12, fontWeight: 600, textDecoration: 'none',
-                  }}>
-                    View <ChevronRight size={12} />
-                  </Link>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

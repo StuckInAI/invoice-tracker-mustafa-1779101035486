@@ -2,46 +2,48 @@ export type StageName =
   | 'Applied'
   | 'Screening'
   | 'Interview'
-  | 'Technical'
   | 'Offer'
   | 'Hired'
-  | 'Onboarded'
   | 'Rejected';
 
-export type Role = 'Admin' | 'Recruiter' | 'Interviewer' | 'Viewer';
+export type PipelineType = 'Standard' | 'Technical' | 'Executive';
+
+export type EmploymentType = 'Full-time' | 'Part-time' | 'Contract' | 'Internship';
 
 export interface User {
   id: string;
   name: string;
   email: string;
-  role: Role;
+  role: 'Admin' | 'Recruiter' | 'Hiring Manager';
   active: boolean;
   createdAt: string;
-  passwordHash: string;
 }
 
-export interface CustomFieldDef {
+export interface Job {
   id: string;
-  label: string;
-  type: 'text' | 'number' | 'date' | 'select';
-  options?: string[];
-}
-
-export interface CustomFieldValue {
-  fieldId: string;
-  value: string | number;
+  title: string;
+  department: string;
+  location: string;
+  description: string;
+  requirements: string;
+  status: 'Open' | 'Closed' | 'Draft';
+  employmentType: EmploymentType;
+  pipelineType: PipelineType;
+  createdAt: string;
+  createdBy: string;
 }
 
 export interface StageHistoryEntry {
   stage: StageName;
-  enteredAt: string;
+  movedAt: string;
+  movedBy: string;
 }
 
 export interface Note {
   id: string;
   content: string;
-  authorId: string;
   createdAt: string;
+  createdBy: string;
 }
 
 export interface EmailLog {
@@ -63,27 +65,25 @@ export interface Candidate {
   id: string;
   name: string;
   email: string;
-  phone?: string;
-  linkedin?: string;
+  phone: string;
   jobId: string;
+  jobTitle: string;
   stage: StageName;
-  source?: string;
-  customFields?: CustomFieldValue[];
+  tags: string[];
+  customFields: Record<string, string>;
   stageHistory: StageHistoryEntry[];
   notes: Note[];
   emails: EmailLog[];
   documents: Document[];
   createdAt: string;
-  resumeText?: string;
+  resumeUrl?: string;
+  linkedinUrl?: string;
+  source?: string;
 }
 
-export interface Job {
+export interface CustomFieldDef {
   id: string;
-  title: string;
-  department: string;
-  location: string;
-  status: 'Open' | 'Closed' | 'Draft';
-  pipelineType: string;
-  description?: string;
-  createdAt: string;
+  name: string;
+  type: 'text' | 'number' | 'date' | 'select';
+  options?: string[];
 }

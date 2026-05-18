@@ -1,56 +1,41 @@
 import type { StageName } from '@/types';
 
-export const STAGE_NAMES: StageName[] = [
+export const STAGES: StageName[] = [
   'Applied',
   'Screening',
   'Interview',
-  'Technical',
   'Offer',
   'Hired',
-  'Onboarded',
   'Rejected',
 ];
 
+// Alias for pages that import ALL_STAGES
+export const ALL_STAGES = STAGES;
+
 export const STAGE_COLORS: Record<StageName, string> = {
-  Applied: '#6366f1',
-  Screening: '#8b5cf6',
-  Interview: '#3b82f6',
-  Technical: '#06b6d4',
-  Offer: '#f59e0b',
-  Hired: '#10b981',
-  Onboarded: '#059669',
-  Rejected: '#ef4444',
+  Applied: '#2563eb',
+  Screening: '#7c3aed',
+  Interview: '#d97706',
+  Offer: '#059669',
+  Hired: '#16a34a',
+  Rejected: '#dc2626',
 };
 
 export const STAGE_BG: Record<StageName, string> = {
-  Applied: '#eef2ff',
-  Screening: '#f5f3ff',
-  Interview: '#eff6ff',
-  Technical: '#ecfeff',
-  Offer: '#fffbeb',
-  Hired: '#ecfdf5',
-  Onboarded: '#d1fae5',
-  Rejected: '#fef2f2',
+  Applied: '#dbeafe',
+  Screening: '#ede9fe',
+  Interview: '#fef3c7',
+  Offer: '#d1fae5',
+  Hired: '#dcfce7',
+  Rejected: '#fee2e2',
 };
 
-export const STAGE_LABELS: Record<StageName, string> = {
-  Applied: 'Applied',
-  Screening: 'Screening',
-  Interview: 'Interview',
-  Technical: 'Technical',
-  Offer: 'Offer',
-  Hired: 'Hired',
-  Onboarded: 'Onboarded',
-  Rejected: 'Rejected',
+export const PIPELINE_STAGES: Record<string, StageName[]> = {
+  Standard: ['Applied', 'Screening', 'Interview', 'Offer', 'Hired', 'Rejected'],
+  Technical: ['Applied', 'Screening', 'Interview', 'Offer', 'Hired', 'Rejected'],
+  Executive: ['Applied', 'Screening', 'Interview', 'Offer', 'Hired', 'Rejected'],
 };
 
-export const STAGE_ORDER = STAGE_NAMES;
-
-export interface Pipeline {
-  stages: StageName[];
-}
-
-export function getPipeline(pipelineType: string): Pipeline {
-  // All pipeline types use the same stage set for now
-  return { stages: STAGE_NAMES };
+export function getStagesForPipeline(pipelineType?: string): StageName[] {
+  return PIPELINE_STAGES[pipelineType ?? 'Standard'] ?? STAGES;
 }

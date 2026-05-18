@@ -1,158 +1,145 @@
 import { useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
 } from 'recharts';
-import { Users, Briefcase, TrendingUp, CheckCircle } from 'lucide-react';
 import { useAts } from '@/hooks/useAtsStore';
-import StageBadge from '@/components/StageBadge';
+import { STAGES, STAGE_COLORS, STAGE_BG } from '@/lib/pipeline';
 import PageHeader from '@/components/PageHeader';
-import type { StageName } from '@/types';
-import { STAGE_COLORS } from '@/lib/pipeline';
-
-const STAGES: StageName[] = ['Applied', 'Screening', 'Interview', 'Technical', 'Offer', 'Hired', 'Rejected'];
+import StageBadge from '@/components/StageBadge';
 
 export default function DashboardPage() {
-  const { candidates, jobs } = useAts();
+  const navigate = useNavigate();
+  const { candidates, jobs, currentUser } = useAts();
 
-  const activeCandidates = candidates.filter((c) => c.stage !== 'Hired' && c.stage !== 'Rejected' && c.stage !== 'Onboarded').length;
-  const hired = candidates.filter((c) => c.stage === 'Hired' || c.stage === 'Onboarded').length;
+  const openJobs = jobs.filter((j) => j.status === 'Open').length;
+  const totalCandidates = candidates.length;
 
   const stageData = useMemo(() =>
     STAGES.map((s) => ({
       name: s,
       count: candidates.filter((c) => c.stage === s).length,
+      color: STAGE_COLORS[s],
     })),
-    [candidates],
+    [candidates]
   );
 
-  const avgTimeToHire = useMemo(() => {
-    const hiredCandidates = candidates.filter((c) => c.stage === 'Hired' || c.stage === 'Onboarded');
-    if (!hiredCandidates.length) return null;
-    const total = hiredCandidates.reduce((sum, c) => {
-      const diff = new Date().getTime() - new Date(c.createdAt).getTime();
-      return sum + diff / (1000 * 60 * 60 * 24);
-    }, 0);
-    return Math.round(total / hiredCandidates.length);
-  }, [candidates]);
-
-  const recentCandidates = useMemo(() =>
-    [...candidates]
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-      .slice(0, 5),
-    [candidates],
+  const recentCandidates = useMemo(
+    () => [...candidates].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 5),
+    [candidates]
   );
 
-  const openJobs = jobs.filter((j) => j.status === 'Open').length;
-
-  const stats = [
-    { label: 'Open Positions', value: openJobs, icon: <Briefcase size={20} />, color: '#6366f1' },
-    { label: 'Active Candidates', value: activeCandidates, icon: <Users size={20} />, color: '#0ea5e9' },
-    { label: 'Hired (All Time)', value: hired, icon: <CheckCircle size={20} />, color: '#22c55e' },
-    { label: 'Avg. Days to Hire', value: avgTimeToHire ?? '—', icon: <TrendingUp size={20} />, color: '#f59e0b' },
-  ];
+  const statCard = (label: string, value: number | string, sub?: string) => (
+    <div style={{
+      background: 'var(--color-surface)',
+      borderRadius: 10,
+      border: '1px solid var(--color-border)',
+      padding: '18px 22px',
+    }}>
+      <div style={{ fontSize: 12, color: 'var(--color-text-muted)', fontWeight: 500, marginBottom: 6 }}>{label}</div>
+      <div style={{ fontSize: 28, fontWeight: 700, color: 'var(--color-text)' }}>{value}</div>
+      {sub && <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 4 }}>{sub}</div>}
+    </div>
+  );
 
   return (
     <div>
-      <PageHeader title="Dashboard" subtitle="Your hiring overview" />
+      <PageHeader
+        title={`Welcome back, ${currentUser?.name?.split(' ')[0] ?? 'there'} 👋`}
+        subtitle="Here's your hiring overview"
+      />
 
-      {/* Stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 16, marginBottom: 28 }}>
-        {stats.map((s) => (
-          <div
-            key={s.label}
-            style={{
-              background: 'var(--color-surface)',
-              border: '1px solid var(--color-border)',
-              borderRadius: 10,
-              padding: '16px 20px',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-              <span style={{ fontSize: 12, color: 'var(--color-text-muted)', fontWeight: 500 }}>{s.label}</span>
-              <span style={{ color: s.color }}>{s.icon}</span>
-            </div>
-            <div style={{ fontSize: 26, fontWeight: 700, color: 'var(--color-text)' }}>{s.value}</div>
-          </div>
-        ))}
+      {/* Stat cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 14, marginBottom: 24 }}>
+        {statCard('Open Jobs', openJobs)}
+        {statCard('Total Candidates', totalCandidates)}
+        {statCard('Active Pipelines', openJobs)}
+        {statCard(
+          'Hired (All Time)',
+          candidates.filter((c) => c.stage === 'Hired').length
+        )}
       </div>
 
-      {/* Charts */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 28 }}>
-        <div style={{
-          background: 'var(--color-surface)', border: '1px solid var(--color-border)',
-          borderRadius: 10, padding: '20px',
-        }}>
-          <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 16 }}>Candidates by Stage</h3>
+      {/* Charts + Recent */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 24 }}>
+        {/* Bar chart */}
+        <div style={{ background: 'var(--color-surface)', borderRadius: 10, border: '1px solid var(--color-border)', padding: '20px' }}>
+          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 16 }}>Candidates by Stage</div>
           <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={stageData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
-              <XAxis dataKey="name" tick={{ fontSize: 10 }} />
-              <YAxis tick={{ fontSize: 10 }} allowDecimals={false} />
+            <BarChart data={stageData} barSize={28}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+              <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+              <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
               <Tooltip />
-              <Bar dataKey="count" radius={[4, 4, 0, 0]}>
+              <Bar dataKey="count">
                 {stageData.map((entry) => (
-                  <Cell key={entry.name} fill={STAGE_COLORS[entry.name as StageName] ?? '#6366f1'} />
+                  <Cell key={entry.name} fill={entry.color} />
                 ))}
               </Bar>
             </BarChart>
           </ResponsiveContainer>
         </div>
 
-        <div style={{
-          background: 'var(--color-surface)', border: '1px solid var(--color-border)',
-          borderRadius: 10, padding: '20px',
-        }}>
-          <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 16 }}>Open Jobs by Department</h3>
+        {/* Stage breakdown */}
+        <div style={{ background: 'var(--color-surface)', borderRadius: 10, border: '1px solid var(--color-border)', padding: '20px' }}>
+          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 16 }}>Stage Breakdown</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {Array.from(new Set(jobs.filter(j => j.status === 'Open').map(j => j.department))).map(dept => {
-              const count = jobs.filter(j => j.department === dept && j.status === 'Open').length;
-              return (
-                <div key={dept} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ fontSize: 13, color: 'var(--color-text)', minWidth: 120 }}>{dept}</span>
-                  <div style={{ flex: 1, height: 8, background: 'var(--color-surface-alt)', borderRadius: 4, overflow: 'hidden' }}>
-                    <div style={{ width: `${(count / (openJobs || 1)) * 100}%`, height: '100%', background: 'var(--color-primary)', borderRadius: 4 }} />
-                  </div>
-                  <span style={{ fontSize: 12, color: 'var(--color-text-muted)', minWidth: 20, textAlign: 'right' }}>{count}</span>
+            {stageData.map(({ name, count, color }) => (
+              <div key={name} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ width: 10, height: 10, borderRadius: '50%', background: color, flexShrink: 0 }} />
+                <div style={{ flex: 1, fontSize: 13 }}>{name}</div>
+                <div style={{ fontWeight: 600, fontSize: 13 }}>{count}</div>
+                <div style={{
+                  width: 80, height: 6, borderRadius: 3,
+                  background: 'var(--color-border)',
+                  overflow: 'hidden',
+                }}>
+                  <div style={{
+                    height: '100%',
+                    width: totalCandidates ? `${(count / totalCandidates) * 100}%` : '0%',
+                    background: color,
+                    borderRadius: 3,
+                  }} />
                 </div>
-              );
-            })}
-            {openJobs === 0 && <p style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>No open jobs.</p>}
+              </div>
+            ))}
           </div>
         </div>
       </div>
 
-      {/* Recent Candidates */}
-      <div style={{
-        background: 'var(--color-surface)', border: '1px solid var(--color-border)',
-        borderRadius: 10, padding: '20px',
-      }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-          <h3 style={{ fontSize: 14, fontWeight: 600 }}>Recent Candidates</h3>
-          <Link to="/candidates" style={{ fontSize: 13, color: 'var(--color-primary)', textDecoration: 'none' }}>View all</Link>
-        </div>
+      {/* Recent candidates */}
+      <div style={{ background: 'var(--color-surface)', borderRadius: 10, border: '1px solid var(--color-border)', padding: '20px' }}>
+        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 14 }}>Recent Candidates</div>
         {recentCandidates.length === 0 ? (
           <p style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>No candidates yet.</p>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {recentCandidates.map((c) => (
-              <Link
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+            {recentCandidates.map((c, i) => (
+              <div
                 key={c.id}
-                to={`/candidates/${c.id}`}
+                onClick={() => navigate(`/candidates/${c.id}`)}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 12,
-                  padding: '10px 12px',
-                  borderRadius: 8,
-                  border: '1px solid var(--color-border)',
-                  textDecoration: 'none',
-                  color: 'var(--color-text)',
+                  padding: '10px 4px',
+                  borderTop: i === 0 ? 'none' : '1px solid var(--color-border)',
+                  cursor: 'pointer',
                 }}
               >
+                <div style={{
+                  width: 32, height: 32, borderRadius: '50%',
+                  background: STAGE_BG[c.stage],
+                  color: STAGE_COLORS[c.stage],
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontWeight: 700, fontSize: 13, flexShrink: 0,
+                }}>
+                  {c.name.charAt(0)}
+                </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 600, fontSize: 13 }}>{c.name}</div>
+                  <div style={{ fontSize: 13, fontWeight: 600 }}>{c.name}</div>
                   <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>{c.jobTitle}</div>
                 </div>
                 <StageBadge stage={c.stage} />
-              </Link>
+              </div>
             ))}
           </div>
         )}

@@ -1,320 +1,342 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { ArrowLeft, Mail, Phone, FileText, Tag, Plus, Send, ChevronRight } from 'lucide-react';
 import { useAts } from '@/hooks/useAtsStore';
-import StageBadge from '@/components/StageBadge';
-import PageHeader from '@/components/PageHeader';
-import Modal from '@/components/Modal';
-import { STAGE_ORDER } from '@/lib/pipeline';
-import { fmtDate } from '@/lib/format';
-import type { StageName } from '@/types';
 import { EMAIL_TEMPLATES } from '@/lib/emailTemplates';
-
-function InfoRow({ label, value }: { label: string; value?: string | null }) {
-  return (
-    <div style={{ display: 'flex', gap: 8, fontSize: 13, marginBottom: 8 }}>
-      <span style={{ color: 'var(--color-text-muted)', width: 110, flexShrink: 0 }}>{label}</span>
-      <span style={{ color: 'var(--color-text)', wordBreak: 'break-all' }}>{value || '—'}</span>
-    </div>
-  );
-}
+import { STAGES, STAGE_COLORS, STAGE_BG } from '@/lib/pipeline';
+import StageBadge from '@/components/StageBadge';
+import Modal from '@/components/Modal';
+import PageHeader from '@/components/PageHeader';
+import type { StageName } from '@/types';
 
 export default function CandidateDetailPage() {
   const { candidateId } = useParams<{ candidateId: string }>();
   const navigate = useNavigate();
-  const {
-    candidates,
-    jobs,
-    customFields,
-    moveCandidateStage,
-    addCandidateNote,
-    addCandidateEmail,
-    updateCandidate,
-  } = useAts();
+  const { candidates, moveCandidateStage, addCandidateNote, addCandidateEmail, currentUser } = useAts();
 
   const candidate = candidates.find((c) => c.id === candidateId);
-  const job = candidate ? jobs.find((j) => j.id === candidate.jobId) : null;
 
   const [noteText, setNoteText] = useState('');
-  const [emailModalOpen, setEmailModalOpen] = useState(false);
+  const [emailModal, setEmailModal] = useState(false);
   const [emailSubject, setEmailSubject] = useState('');
   const [emailBody, setEmailBody] = useState('');
-  const [editModalOpen, setEditModalOpen] = useState(false);
-  const [editName, setEditName] = useState(candidate?.name ?? '');
-  const [editEmail, setEditEmail] = useState(candidate?.email ?? '');
-  const [editPhone, setEditPhone] = useState(candidate?.phone ?? '');
-  const [editLinkedin, setEditLinkedin] = useState(candidate?.linkedin ?? '');
-  const [editSource, setEditSource] = useState(candidate?.source ?? '');
+  const [selectedTemplate, setSelectedTemplate] = useState('');
+  const [activeTab, setActiveTab] = useState<'overview' | 'notes' | 'emails' | 'documents'>('overview');
 
   if (!candidate) {
     return (
-      <div style={{ padding: 32, textAlign: 'center', color: 'var(--color-text-muted)' }}>
-        Candidate not found.
-        <br />
-        <button onClick={() => navigate('/candidates')} style={{ marginTop: 12, cursor: 'pointer' }}>Back to Candidates</button>
+      <div style={{ padding: 40, textAlign: 'center' }}>
+        <p>Candidate not found.</p>
+        <button onClick={() => navigate('/candidates')} style={{ marginTop: 12 }}>Back to Candidates</button>
       </div>
     );
   }
 
-  function handleMoveStage(s: StageName) {
-    moveCandidateStage(candidateId!, s);
-  }
+  const handleStageChange = (stage: StageName) => {
+    moveCandidateStage(candidate.id, stage);
+  };
 
-  function handleAddNote() {
+  const handleAddNote = () => {
     if (!noteText.trim()) return;
-    addCandidateNote(candidateId!, noteText.trim());
+    addCandidateNote(candidate.id, noteText);
     setNoteText('');
-  }
+  };
 
-  function handleSendEmail() {
+  const handleTemplateSelect = (templateId: string) => {
+    setSelectedTemplate(templateId);
+    const tpl = EMAIL_TEMPLATES.find((t) => t.id === templateId);
+    if (tpl) {
+      const subject = tpl.subject
+        .replace('{{name}}', candidate.name)
+        .replace('{{jobTitle}}', candidate.jobTitle ?? '');
+      const body = tpl.body
+        .replace('{{name}}', candidate.name)
+        .replace('{{jobTitle}}', candidate.jobTitle ?? '');
+      setEmailSubject(subject);
+      setEmailBody(body);
+    }
+  };
+
+  const handleSendEmail = () => {
     if (!emailSubject.trim() || !emailBody.trim()) return;
-    addCandidateEmail(candidateId!, { subject: emailSubject.trim(), body: emailBody.trim() });
-    setEmailModalOpen(false);
+    addCandidateEmail(candidate.id, { subject: emailSubject, body: emailBody });
+    setEmailModal(false);
     setEmailSubject('');
     setEmailBody('');
-  }
+    setSelectedTemplate('');
+  };
 
-  function handleSaveEdit() {
-    updateCandidate(candidateId!, {
-      name: editName.trim(),
-      email: editEmail.trim(),
-      phone: editPhone.trim(),
-      linkedin: editLinkedin.trim(),
-      source: editSource.trim(),
-    });
-    setEditModalOpen(false);
-  }
-
-  const btnStyle: React.CSSProperties = {
-    padding: '6px 14px', borderRadius: 6, border: '1px solid var(--color-border)',
-    background: 'transparent', fontSize: 13, cursor: 'pointer', color: 'var(--color-text)',
+  const btnBase: React.CSSProperties = {
+    padding: '7px 16px',
+    borderRadius: 7,
+    border: 'none',
+    cursor: 'pointer',
+    fontSize: 13,
+    fontWeight: 500,
   };
 
   return (
     <div>
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24, gap: 16, flexWrap: 'wrap' }}>
-        <div>
-          <button onClick={() => navigate('/candidates')} style={{ ...btnStyle, marginBottom: 12, fontSize: 12 }}>
-            ← Back
-          </button>
-          <h1 style={{ fontSize: 22, fontWeight: 700 }}>{candidate.name}</h1>
-          <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <StageBadge stage={candidate.stage} />
-            {job && <span style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>{job.title}</span>}
-          </div>
-        </div>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <button style={btnStyle} onClick={() => {
-            setEditName(candidate.name);
-            setEditEmail(candidate.email);
-            setEditPhone(candidate.phone ?? '');
-            setEditLinkedin(candidate.linkedin ?? '');
-            setEditSource(candidate.source ?? '');
-            setEditModalOpen(true);
-          }}>Edit</button>
-          <button style={{ ...btnStyle, background: 'var(--color-primary)', color: 'white', border: 'none' }}
-            onClick={() => setEmailModalOpen(true)}>Send Email</button>
-        </div>
+      <div style={{ marginBottom: 16 }}>
+        <button
+          onClick={() => navigate(-1)}
+          style={{ ...btnBase, background: 'transparent', color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', gap: 4, padding: '6px 0' }}
+        >
+          <ArrowLeft size={16} /> Back
+        </button>
       </div>
+
+      <PageHeader
+        title={candidate.name}
+        subtitle={candidate.jobTitle ? `Applied for: ${candidate.jobTitle}` : undefined}
+        actions={
+          <button
+            onClick={() => setEmailModal(true)}
+            style={{ ...btnBase, background: 'var(--color-primary)', color: 'white', display: 'flex', alignItems: 'center', gap: 6 }}
+          >
+            <Send size={14} /> Send Email
+          </button>
+        }
+      />
 
       {/* Stage pipeline */}
       <div style={{
-        background: 'var(--color-surface)', borderRadius: 10, padding: '12px 16px',
-        marginBottom: 24, display: 'flex', gap: 4, flexWrap: 'wrap',
+        background: 'var(--color-surface)',
+        borderRadius: 10,
+        border: '1px solid var(--color-border)',
+        padding: '16px 20px',
+        marginBottom: 20,
       }}>
-        {STAGE_ORDER.map((s) => (
+        <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-text-muted)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Pipeline Stage</div>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          {STAGES.map((s, i) => (
+            <div key={s} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <button
+                onClick={() => handleStageChange(s as StageName)}
+                style={{
+                  padding: '5px 12px',
+                  borderRadius: 20,
+                  border: s === candidate.stage ? `2px solid ${STAGE_COLORS[s as StageName]}` : '2px solid transparent',
+                  background: s === candidate.stage ? STAGE_BG[s as StageName] : 'var(--color-surface-alt)',
+                  color: s === candidate.stage ? STAGE_COLORS[s as StageName] : 'var(--color-text-muted)',
+                  cursor: 'pointer',
+                  fontSize: 12,
+                  fontWeight: s === candidate.stage ? 600 : 400,
+                  transition: 'all 0.15s',
+                }}
+              >
+                {s}
+              </button>
+              {i < STAGES.length - 1 && <ChevronRight size={14} style={{ color: 'var(--color-text-muted)', opacity: 0.4 }} />}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Info cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12, marginBottom: 20 }}>
+        {candidate.email && (
+          <div style={{ background: 'var(--color-surface)', borderRadius: 8, border: '1px solid var(--color-border)', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
+            <Mail size={16} style={{ color: 'var(--color-primary)', flexShrink: 0 }} />
+            <div style={{ overflow: 'hidden' }}>
+              <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginBottom: 2 }}>Email</div>
+              <div style={{ fontSize: 13, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{candidate.email}</div>
+            </div>
+          </div>
+        )}
+        {candidate.phone && (
+          <div style={{ background: 'var(--color-surface)', borderRadius: 8, border: '1px solid var(--color-border)', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
+            <Phone size={16} style={{ color: 'var(--color-primary)', flexShrink: 0 }} />
+            <div>
+              <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginBottom: 2 }}>Phone</div>
+              <div style={{ fontSize: 13, fontWeight: 500 }}>{candidate.phone}</div>
+            </div>
+          </div>
+        )}
+        {candidate.source && (
+          <div style={{ background: 'var(--color-surface)', borderRadius: 8, border: '1px solid var(--color-border)', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
+            <Tag size={16} style={{ color: 'var(--color-primary)', flexShrink: 0 }} />
+            <div>
+              <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginBottom: 2 }}>Source</div>
+              <div style={{ fontSize: 13, fontWeight: 500 }}>{candidate.source}</div>
+            </div>
+          </div>
+        )}
+        <div style={{ background: 'var(--color-surface)', borderRadius: 8, border: '1px solid var(--color-border)', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
+          <FileText size={16} style={{ color: 'var(--color-primary)', flexShrink: 0 }} />
+          <div>
+            <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginBottom: 2 }}>Stage</div>
+            <StageBadge stage={candidate.stage} />
+          </div>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div style={{ display: 'flex', gap: 2, marginBottom: 16, borderBottom: '1px solid var(--color-border)', paddingBottom: 0 }}>
+        {(['overview', 'notes', 'emails', 'documents'] as const).map((tab) => (
           <button
-            key={s}
-            onClick={() => handleMoveStage(s)}
+            key={tab}
+            onClick={() => setActiveTab(tab)}
             style={{
-              padding: '5px 12px', borderRadius: 6, fontSize: 12, fontWeight: 500,
-              border: s === candidate.stage ? '2px solid var(--color-primary)' : '1px solid var(--color-border)',
-              background: s === candidate.stage ? 'var(--color-primary-soft)' : 'transparent',
+              padding: '8px 16px',
+              border: 'none',
+              background: 'transparent',
               cursor: 'pointer',
-              color: s === candidate.stage ? 'var(--color-primary)' : 'var(--color-text)',
-              fontWeight: s === candidate.stage ? 600 : 400,
+              fontSize: 13,
+              fontWeight: activeTab === tab ? 600 : 400,
+              color: activeTab === tab ? 'var(--color-primary)' : 'var(--color-text-muted)',
+              borderBottom: activeTab === tab ? '2px solid var(--color-primary)' : '2px solid transparent',
+              marginBottom: -1,
             }}
           >
-            {s}
+            {tab.charAt(0).toUpperCase() + tab.slice(1)}
           </button>
         ))}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
-        {/* Left: Info */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-          {/* Basic info */}
-          <div style={{ background: 'var(--color-surface)', borderRadius: 10, padding: 20 }}>
-            <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 14 }}>Candidate Info</h3>
-            <InfoRow label="Email" value={candidate.email} />
-            <InfoRow label="Phone" value={candidate.phone} />
-            <InfoRow label="LinkedIn" value={candidate.linkedin} />
-            <InfoRow label="Source" value={candidate.source} />
-            <InfoRow label="Stage" value={candidate.stage} />
-            <InfoRow label="Applied" value={fmtDate(candidate.createdAt)} />
-            {customFields.map((cf) => {
-              const val = candidate.customFields?.find((v) => v.fieldId === cf.id);
-              return <InfoRow key={cf.id} label={cf.label} value={val ? String(val.value) : undefined} />;
-            })}
-          </div>
-
-          {/* Stage history */}
-          <div style={{ background: 'var(--color-surface)', borderRadius: 10, padding: 20 }}>
-            <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 14 }}>Stage History</h3>
-            {candidate.stageHistory.length === 0 ? (
-              <p style={{ color: 'var(--color-text-muted)', fontSize: 13 }}>No history yet.</p>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {candidate.stageHistory.map((h, i) => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <StageBadge stage={h.stage} />
-                    <span style={{ fontSize: 11, color: 'var(--color-text-muted)', marginLeft: 8 }}>{fmtDate(h.enteredAt)}</span>
-                  </div>
+      {/* Tab content */}
+      {activeTab === 'overview' && (
+        <div style={{ background: 'var(--color-surface)', borderRadius: 10, border: '1px solid var(--color-border)', padding: 20 }}>
+          <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Candidate Information</h3>
+          <dl style={{ display: 'grid', gridTemplateColumns: '140px 1fr', gap: '8px 16px', fontSize: 13 }}>
+            <dt style={{ color: 'var(--color-text-muted)', fontWeight: 500 }}>Full Name</dt>
+            <dd>{candidate.name}</dd>
+            <dt style={{ color: 'var(--color-text-muted)', fontWeight: 500 }}>Email</dt>
+            <dd>{candidate.email}</dd>
+            {candidate.phone && <><dt style={{ color: 'var(--color-text-muted)', fontWeight: 500 }}>Phone</dt><dd>{candidate.phone}</dd></>}
+            {candidate.jobTitle && <><dt style={{ color: 'var(--color-text-muted)', fontWeight: 500 }}>Applied For</dt><dd>{candidate.jobTitle}</dd></>}
+            {candidate.source && <><dt style={{ color: 'var(--color-text-muted)', fontWeight: 500 }}>Source</dt><dd>{candidate.source}</dd></>}
+            {candidate.linkedinUrl && <><dt style={{ color: 'var(--color-text-muted)', fontWeight: 500 }}>LinkedIn</dt><dd><a href={candidate.linkedinUrl} target="_blank" rel="noreferrer">{candidate.linkedinUrl}</a></dd></>}
+          </dl>
+          {candidate.tags && candidate.tags.length > 0 && (
+            <div style={{ marginTop: 16 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-text-muted)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Tags</div>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {candidate.tags.map((tag) => (
+                  <span key={tag} style={{ padding: '2px 8px', borderRadius: 999, background: 'var(--color-surface-alt)', fontSize: 12, fontWeight: 500 }}>{tag}</span>
                 ))}
               </div>
-            )}
-          </div>
-        </div>
-
-        {/* Right: Notes, Emails */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-          {/* Notes */}
-          <div style={{ background: 'var(--color-surface)', borderRadius: 10, padding: 20 }}>
-            <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 14 }}>Notes</h3>
-            <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-              <textarea
-                value={noteText}
-                onChange={(e) => setNoteText(e.target.value)}
-                placeholder="Add a note..."
-                rows={2}
-                style={{
-                  flex: 1, padding: '8px 10px', borderRadius: 6,
-                  border: '1px solid var(--color-border)', fontSize: 13,
-                  background: 'var(--color-surface)', color: 'var(--color-text)',
-                  resize: 'vertical',
-                }}
-              />
-              <button
-                onClick={handleAddNote}
-                style={{
-                  alignSelf: 'flex-end', padding: '8px 14px', borderRadius: 6,
-                  border: 'none', background: 'var(--color-primary)', color: 'white',
-                  fontSize: 13, fontWeight: 600, cursor: 'pointer',
-                }}
-              >
-                Add
-              </button>
             </div>
-            {candidate.notes.length === 0 ? (
-              <p style={{ color: 'var(--color-text-muted)', fontSize: 13 }}>No notes yet.</p>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {candidate.notes.map((n) => (
-                  <div key={n.id} style={{
-                    padding: '10px 12px', background: 'var(--color-surface-alt)', borderRadius: 8, fontSize: 13,
-                  }}>
-                    <div style={{ marginBottom: 4 }}>{n.content}</div>
-                    <div style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>{fmtDate(n.createdAt)}</div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Email log */}
-          <div style={{ background: 'var(--color-surface)', borderRadius: 10, padding: 20 }}>
-            <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 14 }}>Email Log</h3>
-            {candidate.emails.length === 0 ? (
-              <p style={{ color: 'var(--color-text-muted)', fontSize: 13 }}>No emails sent yet.</p>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {candidate.emails.map((em) => (
-                  <div key={em.id} style={{
-                    padding: '10px 12px', background: 'var(--color-surface-alt)', borderRadius: 8, fontSize: 13,
-                  }}>
-                    <div style={{ fontWeight: 600, marginBottom: 4 }}>{em.subject}</div>
-                    <div style={{ whiteSpace: 'pre-wrap', color: 'var(--color-text-muted)' }}>{em.body}</div>
-                    <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 6 }}>{fmtDate(em.sentAt)}</div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          )}
         </div>
-      </div>
+      )}
+
+      {activeTab === 'notes' && (
+        <div style={{ background: 'var(--color-surface)', borderRadius: 10, border: '1px solid var(--color-border)', padding: 20 }}>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+            <textarea
+              value={noteText}
+              onChange={(e) => setNoteText(e.target.value)}
+              placeholder="Add a note..."
+              rows={3}
+              style={{
+                flex: 1, padding: '8px 12px', borderRadius: 7,
+                border: '1px solid var(--color-border)',
+                fontSize: 13, resize: 'vertical',
+                background: 'var(--color-bg)',
+                color: 'var(--color-text)',
+              }}
+            />
+            <button
+              onClick={handleAddNote}
+              style={{ ...btnBase, background: 'var(--color-primary)', color: 'white', alignSelf: 'flex-end', display: 'flex', alignItems: 'center', gap: 4 }}
+            >
+              <Plus size={14} /> Add
+            </button>
+          </div>
+          {candidate.notes.length === 0 ? (
+            <p style={{ color: 'var(--color-text-muted)', fontSize: 13 }}>No notes yet.</p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {[...candidate.notes].reverse().map((note) => (
+                <div key={note.id} style={{ padding: '12px 16px', borderRadius: 8, background: 'var(--color-surface-alt)', fontSize: 13 }}>
+                  <div style={{ marginBottom: 4 }}>{note.content}</div>
+                  <div style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>{new Date(note.createdAt).toLocaleString()}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {activeTab === 'emails' && (
+        <div style={{ background: 'var(--color-surface)', borderRadius: 10, border: '1px solid var(--color-border)', padding: 20 }}>
+          {candidate.emails.length === 0 ? (
+            <p style={{ color: 'var(--color-text-muted)', fontSize: 13 }}>No emails sent yet.</p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {[...candidate.emails].reverse().map((email) => (
+                <div key={email.id} style={{ padding: '12px 16px', borderRadius: 8, border: '1px solid var(--color-border)' }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>{email.subject}</div>
+                  <div style={{ fontSize: 13, color: 'var(--color-text-muted)', whiteSpace: 'pre-wrap' }}>{email.body}</div>
+                  <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 6 }}>{new Date(email.sentAt).toLocaleString()}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {activeTab === 'documents' && (
+        <div style={{ background: 'var(--color-surface)', borderRadius: 10, border: '1px solid var(--color-border)', padding: 20 }}>
+          {(!candidate.documents || candidate.documents.length === 0) ? (
+            <p style={{ color: 'var(--color-text-muted)', fontSize: 13 }}>No documents uploaded.</p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {candidate.documents.map((doc) => (
+                <div key={doc.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderRadius: 8, border: '1px solid var(--color-border)' }}>
+                  <FileText size={16} style={{ flexShrink: 0, color: 'var(--color-primary)' }} />
+                  <a href={doc.url} target="_blank" rel="noreferrer" style={{ fontSize: 13 }}>{doc.name}</a>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Email Modal */}
       <Modal
-        open={emailModalOpen}
-        onClose={() => setEmailModalOpen(false)}
+        open={emailModal}
+        onClose={() => setEmailModal(false)}
         title="Send Email"
         footer={
           <>
-            <button onClick={() => setEmailModalOpen(false)} style={{ padding: '7px 16px', borderRadius: 6, border: '1px solid var(--color-border)', background: 'transparent', fontSize: 13, cursor: 'pointer' }}>Cancel</button>
-            <button onClick={handleSendEmail} style={{ padding: '7px 16px', borderRadius: 6, border: 'none', background: 'var(--color-primary)', color: 'white', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Send</button>
+            <button onClick={() => setEmailModal(false)} style={{ ...btnBase, background: 'var(--color-surface-alt)', color: 'var(--color-text)' }}>Cancel</button>
+            <button onClick={handleSendEmail} style={{ ...btnBase, background: 'var(--color-primary)', color: 'white' }}>Send</button>
           </>
         }
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div>
-            <label style={{ fontSize: 13, fontWeight: 500, display: 'block', marginBottom: 4 }}>Template</label>
+            <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Template</label>
             <select
-              style={{ width: '100%', padding: '8px 12px', borderRadius: 6, border: '1px solid var(--color-border)', fontSize: 13, background: 'var(--color-surface)' }}
-              onChange={(e) => {
-                const tpl = EMAIL_TEMPLATES.find((t) => t.id === e.target.value);
-                if (tpl) {
-                  setEmailSubject(tpl.subject.replace('{{name}}', candidate.name));
-                  setEmailBody(tpl.body.replace('{{name}}', candidate.name));
-                }
-              }}
+              value={selectedTemplate}
+              onChange={(e) => handleTemplateSelect(e.target.value)}
+              style={{ width: '100%', padding: '8px 10px', borderRadius: 7, border: '1px solid var(--color-border)', fontSize: 13, background: 'var(--color-bg)', color: 'var(--color-text)' }}
             >
-              <option value="">— Select template —</option>
-              {EMAIL_TEMPLATES.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+              <option value="">-- Select a template --</option>
+              {EMAIL_TEMPLATES.map((t) => (
+                <option key={t.id} value={t.id}>{t.name}</option>
+              ))}
             </select>
           </div>
           <div>
-            <label style={{ fontSize: 13, fontWeight: 500, display: 'block', marginBottom: 4 }}>Subject</label>
+            <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Subject</label>
             <input
               value={emailSubject}
               onChange={(e) => setEmailSubject(e.target.value)}
-              style={{ width: '100%', padding: '8px 12px', borderRadius: 6, border: '1px solid var(--color-border)', fontSize: 13, background: 'var(--color-surface)', boxSizing: 'border-box' }}
+              style={{ width: '100%', padding: '8px 10px', borderRadius: 7, border: '1px solid var(--color-border)', fontSize: 13, background: 'var(--color-bg)', color: 'var(--color-text)', boxSizing: 'border-box' }}
             />
           </div>
           <div>
-            <label style={{ fontSize: 13, fontWeight: 500, display: 'block', marginBottom: 4 }}>Body</label>
+            <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Body</label>
             <textarea
               value={emailBody}
               onChange={(e) => setEmailBody(e.target.value)}
               rows={6}
-              style={{ width: '100%', padding: '8px 12px', borderRadius: 6, border: '1px solid var(--color-border)', fontSize: 13, background: 'var(--color-surface)', resize: 'vertical', boxSizing: 'border-box' }}
+              style={{ width: '100%', padding: '8px 10px', borderRadius: 7, border: '1px solid var(--color-border)', fontSize: 13, resize: 'vertical', background: 'var(--color-bg)', color: 'var(--color-text)', boxSizing: 'border-box' }}
             />
           </div>
-        </div>
-      </Modal>
-
-      {/* Edit Modal */}
-      <Modal
-        open={editModalOpen}
-        onClose={() => setEditModalOpen(false)}
-        title="Edit Candidate"
-        footer={
-          <>
-            <button onClick={() => setEditModalOpen(false)} style={{ padding: '7px 16px', borderRadius: 6, border: '1px solid var(--color-border)', background: 'transparent', fontSize: 13, cursor: 'pointer' }}>Cancel</button>
-            <button onClick={handleSaveEdit} style={{ padding: '7px 16px', borderRadius: 6, border: 'none', background: 'var(--color-primary)', color: 'white', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Save</button>
-          </>
-        }
-      >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {[['Name', editName, setEditName], ['Email', editEmail, setEditEmail], ['Phone', editPhone, setEditPhone], ['LinkedIn', editLinkedin, setEditLinkedin], ['Source', editSource, setEditSource]] .map(([lbl, val, setter]) => (
-            <div key={lbl as string}>
-              <label style={{ fontSize: 13, fontWeight: 500, display: 'block', marginBottom: 4 }}>{lbl as string}</label>
-              <input
-                value={val as string}
-                onChange={(e) => (setter as React.Dispatch<React.SetStateAction<string>>)(e.target.value)}
-                style={{ width: '100%', padding: '8px 12px', borderRadius: 6, border: '1px solid var(--color-border)', fontSize: 13, background: 'var(--color-surface)', boxSizing: 'border-box' }}
-              />
-            </div>
-          ))}
         </div>
       </Modal>
     </div>
