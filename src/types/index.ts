@@ -4,48 +4,49 @@ export type User = {
   id: string;
   name: string;
   email: string;
-  password: string;
   role: Role;
   active: boolean;
   createdAt: string;
-};
-
-export type Session = {
-  userId: string;
+  // Demo-only password (client-side, not secure)
+  password?: string;
 };
 
 export type StageName =
   | 'Applied'
   | 'Screening'
-  | 'Interviews'
+  | 'Interview'
   | 'Offer'
   | 'Hired'
-  | 'Rejected'
-  | 'Onboarded';
+  | 'Rejected';
 
 export type JobStatus = 'Open' | 'On Hold' | 'Closed';
-
-export type PipelineType = 'Standard' | 'Engineering' | 'Sales' | 'Executive';
 
 export type Job = {
   id: string;
   title: string;
   department: string;
   location: string;
+  employmentType: 'Full-time' | 'Part-time' | 'Contract' | 'Internship';
   status: JobStatus;
-  pipelineType: PipelineType;
-  employmentType?: string;
-  description?: string;
-  requirements?: string;
+  description: string;
+  requirements: string;
   hiringManagerId?: string;
   recruiterId?: string;
   createdAt: string;
 };
 
+export type DocumentRef = {
+  id: string;
+  name: string;
+  type: string;
+  size: number;
+  addedAt: string;
+};
+
 export type StageHistoryEntry = {
   stage: StageName;
   at: string;
-  by?: string;
+  changedBy: string;
 };
 
 export type InterviewNote = {
@@ -53,13 +54,6 @@ export type InterviewNote = {
   content: string;
   createdAt: string;
   createdBy: string;
-};
-
-export type CandidateDocument = {
-  id: string;
-  name: string;
-  url?: string;
-  uploadedAt: string;
 };
 
 export type EmailLog = {
@@ -77,20 +71,22 @@ export type Candidate = {
   email: string;
   phone?: string;
   linkedin?: string;
-  jobId: string;
+  jobId?: string;
   stage: StageName;
   source?: string;
-  customFields: Record<string, string>;
+  rating?: number;
+  resumeText?: string;
+  documents: DocumentRef[];
   stageHistory: StageHistoryEntry[];
   notes: InterviewNote[];
   emails: EmailLog[];
-  documents: CandidateDocument[];
+  customFields?: Record<string, string | number>;
   createdAt: string;
 };
 
 export type CustomFieldDef = {
   id: string;
   label: string;
-  type: 'text' | 'number' | 'select';
+  type: 'text' | 'number' | 'select' | 'date';
   options?: string[];
 };

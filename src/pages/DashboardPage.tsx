@@ -1,133 +1,150 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  Briefcase,
-  Users,
-  Clock,
-  TrendingUp,
-} from 'lucide-react';
-import {
-  Bar,
   BarChart,
+  Bar,
   CartesianGrid,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
 } from 'recharts';
-import PageHeader from '@/components/PageHeader';
-import StageBadge from '@/components/StageBadge';
+import { Briefcase, Users, TrendingUp, Clock } from 'lucide-react';
 import { useAts } from '@/hooks/useAtsStore';
-import { daysBetween, formatDate } from '@/lib/format';
-import type { StageName } from '@/types';
+import PageHeader from '@/components/PageHeader';
+import { STAGES, STAGE_COLORS } from '@/lib/pipeline';
 import styles from './DashboardPage.module.css';
+
+function daysBetween(a: string, b: string) {
+  return Math.max(0, Math.round((new Date(b).getTime() - new Date(a).getTime()) / (1000 * 60 * 60 * 24)));
+}
 
 export default function DashboardPage() {
   const { jobs, candidates } = useAts();
 
-  const openRoles = jobs.filter((j) => j.status === 'Open').length;
-  const activeCandidates = candidates.filter(
-    (c) => c.stage !== 'Rejected' && c.stage !== 'Hired' && c.stage !== 'Onboarded',
-  ).length;
+  const openJobs = jobs.filter((j) => j.status === 'Open').length;
+  const activeCandidates = candidates.filter((c) => c.stage !== 'Hired' && c.stage !== 'Rejected').length;
+  const hired = candidates.filter((c) => c.stage === 'Hired').length;
 
-  const stageCounts = useMemo(() => {
-    const stages: StageName[] = ['Applied', 'Screening', 'Interviews', 'Offer', 'Hired', 'Rejected', 'Onboarded'];
-    return stages.map((stage) => ({
-      stage,
-      count: candidates.filter((c) => c.stage === stage).length,
-    }));
-  }, [candidates]);
-
-  const avgTimeToHire = useMemo(() => {
-    const hired = candidates.filter((c) => c.stage === 'Hired' || c.stage === 'Onboarded');
-    if (hired.length === 0) return 0;
-    const total = hired.reduce((sum, c) => {
-      const applied = c.stageHistory.find((h) => h.stage === 'Applied');
-      const hiredEntry = c.stageHistory.find((h) => h.stage === 'Hired');
-      if (!applied || !hiredEntry) return sum;
-      return sum + daysBetween(applied.changedAt, hiredEntry.changedAt);
-    }, 0);
-    return Math.round(total / hired.length);
-  }, [candidates]);
-
-  const recent = useMemo(
-    () => [...candidates].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 5),
+  const stageData = useMemo(
+    () =>
+      STAGES.map((s) => ({
+        stage: s,
+        count: candidates.filter((c) => c.stage === s).length,
+      })),
     [candidates],
   );
 
+  const avgTimeToHire = useMemo(() => {
+    const hiredCandidates = candidates.filter((c) => c.stage === 'Hired');
+    if (hiredCandidates.length === 0) return 0;
+    const total = hiredCandidates.reduce((sum, c) => {
+      const applied = c.stageHistory.find((h) => h.stage === 'Applied') ?? c.stageHistory[0];
+      const hiredEntry = c.stageHistory.find((h) => h.stage === 'Hired');
+      if (!applied || !hiredEntry) return sum;
+      return sum + daysBetween(applied.at, hiredEntry.at);
+    }, 0);
+    return Math.round(total / hiredCandidates.length);
+  }, [candidates]);
+
+  const sourceData = useMemo(() => {
+    const counts: Record<string, number> = {};
+    candidates.forEach((c) => {
+      const s = c.source ?? 'Unknown';
+      counts[s] = (counts[s] ?? 0) + 1;
+    });
+    return Object.entries(counts).map(([name, value]) => ({ name, value }));
+  }, [candidates]);
+
+  const pieColors = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
+
   return (
     <div>
-      <PageHeader title="Dashboard" subtitle="Pipeline health at a glance" />
+      <PageHeader
+        title="Dashboard"
+        subtitle="Hiring pipeline overview"
+        actions={
+          <>
+            <Link to="/jobs" className="btn btn-secondary">View jobs</Link>
+            <Link to="/candidates/new" className="btn btn-primary">Add candidate</Link>
+          </>
+        }
+      />
 
-      <div className={styles.statGrid}>
-        <StatCard icon={<Briefcase size={18} />} label="Open Roles" value={openRoles} color="#4f46e5" />
-        <StatCard icon={<Users size={18} />} label="Active Candidates" value={activeCandidates} color="#10b981" />
-        <StatCard icon={<Clock size={18} />} label="Avg. Time to Hire" value={`${avgTimeToHire}d`} color="#f59e0b" />
-        <StatCard icon={<TrendingUp size={18} />} label="Total Candidates" value={candidates.length} color="#0ea5e9" />
-      </div>
-
-      <div className={styles.grid}>
-        <div className="card">
-          <div className={styles.cardHeader}>
-            <h3>Candidates by Stage</h3>
+      <div className={styles.kpiGrid}>
+        <div className={styles.kpi}>
+          <div className={styles.kpiIcon} style={{ background: '#eef2ff', color: '#6366f1' }}>
+            <Briefcase size={18} />
           </div>
-          <div style={{ height: 280, padding: 'var(--space-4)' }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={stageCounts}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e3e6eb" />
-                <XAxis dataKey="stage" stroke="#6b7280" fontSize={11} />
-                <YAxis stroke="#6b7280" fontSize={11} allowDecimals={false} />
-                <Tooltip />
-                <Bar dataKey="count" fill="#4f46e5" radius={[6, 6, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+          <div>
+            <div className={styles.kpiLabel}>Open jobs</div>
+            <div className={styles.kpiValue}>{openJobs}</div>
           </div>
         </div>
-
-        <div className="card">
-          <div className={styles.cardHeader}>
-            <h3>Recently Added Candidates</h3>
+        <div className={styles.kpi}>
+          <div className={styles.kpiIcon} style={{ background: '#ecfdf5', color: '#10b981' }}>
+            <Users size={18} />
           </div>
-          <div className={styles.recentList}>
-            {recent.length === 0 && <div className={styles.empty}>No candidates yet.</div>}
-            {recent.map((c) => {
-              const job = jobs.find((j) => j.id === c.jobId);
-              return (
-                <Link key={c.id} to={`/candidates/${c.id}`} className={styles.recentItem}>
-                  <div className={styles.avatar}>{c.name.charAt(0)}</div>
-                  <div className={styles.recentInfo}>
-                    <div className={styles.recentName}>{c.name}</div>
-                    <div className={styles.recentMeta}>
-                      {job?.title ?? 'Unknown role'} • {formatDate(c.createdAt)}
-                    </div>
-                  </div>
-                  <StageBadge stage={c.stage} />
-                </Link>
-              );
-            })}
+          <div>
+            <div className={styles.kpiLabel}>Active candidates</div>
+            <div className={styles.kpiValue}>{activeCandidates}</div>
+          </div>
+        </div>
+        <div className={styles.kpi}>
+          <div className={styles.kpiIcon} style={{ background: '#fef3c7', color: '#d97706' }}>
+            <TrendingUp size={18} />
+          </div>
+          <div>
+            <div className={styles.kpiLabel}>Hired this period</div>
+            <div className={styles.kpiValue}>{hired}</div>
+          </div>
+        </div>
+        <div className={styles.kpi}>
+          <div className={styles.kpiIcon} style={{ background: '#fef2f2', color: '#ef4444' }}>
+            <Clock size={18} />
+          </div>
+          <div>
+            <div className={styles.kpiLabel}>Avg. time-to-hire</div>
+            <div className={styles.kpiValue}>{avgTimeToHire}d</div>
           </div>
         </div>
       </div>
-    </div>
-  );
-}
 
-type StatCardProps = {
-  icon: React.ReactNode;
-  label: string;
-  value: number | string;
-  color: string;
-};
-
-function StatCard({ icon, label, value, color }: StatCardProps) {
-  return (
-    <div className={`card ${styles.stat}`}>
-      <div className={styles.statIcon} style={{ background: `${color}1a`, color }}>
-        {icon}
-      </div>
-      <div>
-        <div className={styles.statLabel}>{label}</div>
-        <div className={styles.statValue}>{value}</div>
+      <div className={styles.chartsGrid}>
+        <div className="card">
+          <h3 style={{ marginBottom: 12 }}>Candidates by stage</h3>
+          <ResponsiveContainer width="100%" height={260}>
+            <BarChart data={stageData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#eef0f4" />
+              <XAxis dataKey="stage" tick={{ fontSize: 12 }} />
+              <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
+              <Tooltip />
+              <Bar dataKey="count" radius={[6, 6, 0, 0]}>
+                {stageData.map((d) => (
+                  <Cell key={d.stage} fill={STAGE_COLORS[d.stage]} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+        <div className="card">
+          <h3 style={{ marginBottom: 12 }}>Source of hire</h3>
+          <ResponsiveContainer width="100%" height={260}>
+            <PieChart>
+              <Pie data={sourceData} dataKey="value" nameKey="name" outerRadius={90} label>
+                {sourceData.map((_, i) => (
+                  <Cell key={i} fill={pieColors[i % pieColors.length]} />
+                ))}
+              </Pie>
+              <Tooltip />
+              <Legend />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
       </div>
     </div>
   );

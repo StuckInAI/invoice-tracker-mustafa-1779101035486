@@ -1,243 +1,227 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
+import {
+  AtsContext,
+  type AtsStore,
+} from '@/hooks/useAtsStore';
 import type {
   Candidate,
   CustomFieldDef,
   EmailLog,
+  InterviewNote,
   Job,
-  Session,
+  StageHistoryEntry,
   StageName,
   User,
 } from '@/types';
-import { AtsContext } from '@/hooks/useAtsStore';
-import type { AtsStore } from '@/hooks/useAtsStore';
-import { loadFromStorage, saveToStorage, removeFromStorage } from '@/lib/storage';
+import { loadState, saveState } from '@/lib/storage';
+import { seedData } from '@/lib/seed';
 import { uid } from '@/lib/id';
-import {
-  SEED_CANDIDATES,
-  SEED_CUSTOM_FIELDS,
-  SEED_JOBS,
-  SEED_USERS,
-} from '@/lib/seed';
 
-type Props = { children: ReactNode };
+type Persisted = {
+  users: User[];
+  jobs: Job[];
+  candidates: Candidate[];
+  customFields: CustomFieldDef[];
+  currentUserId: string | null;
+};
 
-export default function AtsProvider({ children }: Props) {
-  const [users, setUsers] = useState<User[]>(() =>
-    loadFromStorage<User[]>('users', SEED_USERS),
-  );
-  const [jobs, setJobs] = useState<Job[]>(() =>
-    loadFromStorage<Job[]>('jobs', SEED_JOBS),
-  );
-  const [candidates, setCandidates] = useState<Candidate[]>(() =>
-    loadFromStorage<Candidate[]>('candidates', SEED_CANDIDATES),
-  );
-  const [customFields, setCustomFields] = useState<CustomFieldDef[]>(() =>
-    loadFromStorage<CustomFieldDef[]>('customFields', SEED_CUSTOM_FIELDS),
-  );
-  const [session, setSession] = useState<Session | null>(() =>
-    loadFromStorage<Session | null>('session', null),
-  );
+const STORAGE_KEY = 'ats-mvp-state-v1';
 
-  useEffect(() => saveToStorage('users', users), [users]);
-  useEffect(() => saveToStorage('jobs', jobs), [jobs]);
-  useEffect(() => saveToStorage('candidates', candidates), [candidates]);
-  useEffect(() => saveToStorage('customFields', customFields), [customFields]);
+function initialState(): Persisted {
+  const existing = loadState<Persisted>(STORAGE_KEY);
+  if (existing) return existing;
+  const seed = seedData();
+  return {
+    users: seed.users,
+    jobs: seed.jobs,
+    candidates: seed.candidates,
+    customFields: seed.customFields,
+    currentUserId: null,
+  };
+}
+
+export default function AtsProvider({ children }: { children: ReactNode }) {
+  const init = useMemo(() => initialState(), []);
+  const [users, setUsers] = useState<User[]>(init.users);
+  const [jobs, setJobs] = useState<Job[]>(init.jobs);
+  const [candidates, setCandidates] = useState<Candidate[]>(init.candidates);
+  const [customFields, setCustomFields] = useState<CustomFieldDef[]>(init.customFields);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(init.currentUserId);
+
   useEffect(() => {
-    if (session) saveToStorage('session', session);
-    else removeFromStorage('session');
-  }, [session]);
+    saveState<Persisted>(STORAGE_KEY, {
+      users,
+      jobs,
+      candidates,
+      customFields,
+      currentUserId,
+    });
+  }, [users, jobs, candidates, customFields, currentUserId]);
 
-  const currentUser = useMemo<User | null>(
-    () => (session ? users.find((u) => u.id === session.userId) ?? null : null),
-    [session, users],
+  const currentUser = useMemo(
+    () => users.find((u) => u.id === currentUserId) ?? null,
+    [users, currentUserId],
   );
 
   const login = useCallback(
-    (email: string, password: string): boolean => {
+    (email: string, password: string) => {
       const u = users.find(
-        (x) => x.email.toLowerCase() === email.toLowerCase() && x.password === password && x.active,
+        (x) => x.email.toLowerCase() === email.toLowerCase() && x.active && (x.password ?? 'password') === password,
       );
-      if (!u) return false;
-      setSession({ userId: u.id });
-      return true;
+      if (u) {
+        setCurrentUserId(u.id);
+        return true;
+      }
+      return false;
     },
     [users],
   );
 
-  const logout = useCallback(() => setSession(null), []);
+  const logout = useCallback(() => setCurrentUserId(null), []);
 
-  const addUser = useCallback((u: Omit<User, 'id' | 'createdAt'>) => {
-    const newUser: User = { ...u, id: uid('user'), createdAt: new Date().toISOString() };
-    setUsers((prev) => [...prev, newUser]);
-  }, []);
+  const addUser: AtsStore['addUser'] = (u) => {
+    setUsers((prev) => [
+      ...prev,
+      { ...u, id: uid('u'), createdAt: new Date().toISOString() },
+    ]);
+  };
 
-  const toggleUserActive = useCallback((id: string) => {
+  const toggleUserActive: AtsStore['toggleUserActive'] = (id) => {
     setUsers((prev) => prev.map((u) => (u.id === id ? { ...u, active: !u.active } : u)));
-  }, []);
+  };
 
-  const addJob = useCallback((j: Omit<Job, 'id' | 'createdAt'>): Job => {
-    const job: Job = { ...j, id: uid('job'), createdAt: new Date().toISOString() };
+  const addJob: AtsStore['addJob'] = (j) => {
+    const job: Job = { ...j, id: uid('j'), createdAt: new Date().toISOString() };
     setJobs((prev) => [job, ...prev]);
     return job;
-  }, []);
+  };
 
-  const updateJob = useCallback((id: string, patch: Partial<Job>) => {
+  const updateJob: AtsStore['updateJob'] = (id, patch) => {
     setJobs((prev) => prev.map((j) => (j.id === id ? { ...j, ...patch } : j)));
-  }, []);
+  };
 
-  const deleteJob = useCallback((id: string) => {
+  const deleteJob: AtsStore['deleteJob'] = (id) => {
     setJobs((prev) => prev.filter((j) => j.id !== id));
-    setCandidates((prev) => prev.filter((c) => c.jobId !== id));
-  }, []);
+  };
 
-  const addCandidate = useCallback<AtsStore['addCandidate']>((c) => {
+  const addCandidate: AtsStore['addCandidate'] = (c) => {
     const now = new Date().toISOString();
-    const cand: Candidate = {
+    const candidate: Candidate = {
       ...c,
-      id: uid('cand'),
+      id: uid('c'),
       createdAt: now,
-      documents: c.documents ?? [],
-      stageHistory: [{ stage: c.stage, changedAt: now, changedBy: 'System' }],
+      stageHistory: [{ stage: c.stage, at: now, changedBy: 'System' }],
       notes: [],
       emails: [],
+      documents: c.documents ?? [],
     };
-    setCandidates((prev) => [cand, ...prev]);
-    return cand;
-  }, []);
+    setCandidates((prev) => [candidate, ...prev]);
+    return candidate;
+  };
 
-  const updateCandidate = useCallback((id: string, patch: Partial<Candidate>) => {
+  const updateCandidate: AtsStore['updateCandidate'] = (id, patch) => {
     setCandidates((prev) => prev.map((c) => (c.id === id ? { ...c, ...patch } : c)));
-  }, []);
+  };
 
-  const moveCandidateStage = useCallback(
-    (id: string, stage: StageName) => {
-      setCandidates((prev) =>
-        prev.map((c) => {
-          if (c.id !== id) return c;
-          if (c.stage === stage) return c;
-          const entry = {
-            stage,
-            changedAt: new Date().toISOString(),
-            changedBy: currentUser?.name ?? 'System',
-          };
-          return { ...c, stage, stageHistory: [...c.stageHistory, entry] };
-        }),
-      );
-    },
-    [currentUser],
-  );
+  const moveCandidateStage: AtsStore['moveCandidateStage'] = (id, stage) => {
+    const now = new Date().toISOString();
+    setCandidates((prev) =>
+      prev.map((c) => {
+        if (c.id !== id) return c;
+        const entry: StageHistoryEntry = {
+          stage,
+          at: now,
+          changedBy: currentUser?.name ?? 'System',
+        };
+        return { ...c, stage, stageHistory: [...c.stageHistory, entry] };
+      }),
+    );
+  };
 
-  const addCandidateNote = useCallback(
-    (id: string, content: string) => {
-      setCandidates((prev) =>
-        prev.map((c) =>
-          c.id === id
-            ? {
-                ...c,
-                notes: [
-                  ...c.notes,
-                  {
-                    id: uid('note'),
-                    authorId: currentUser?.id ?? 'unknown',
-                    authorName: currentUser?.name ?? 'Unknown',
-                    content,
-                    createdAt: new Date().toISOString(),
-                  },
-                ],
-              }
-            : c,
-        ),
-      );
-    },
-    [currentUser],
-  );
+  const addCandidateNote: AtsStore['addCandidateNote'] = (id, content) => {
+    const note: InterviewNote = {
+      id: uid('n'),
+      content,
+      createdAt: new Date().toISOString(),
+      createdBy: currentUser?.name ?? 'System',
+    };
+    setCandidates((prev) =>
+      prev.map((c) =>
+        c.id === id
+          ? {
+              ...c,
+              notes: [note, ...c.notes],
+            }
+          : c,
+      ),
+    );
+  };
 
-  const addCandidateEmail = useCallback(
-    (id: string, email: Omit<EmailLog, 'id' | 'sentAt' | 'sentBy'>) => {
-      setCandidates((prev) =>
-        prev.map((c) =>
-          c.id === id
-            ? {
-                ...c,
-                emails: [
-                  ...c.emails,
-                  {
-                    ...email,
-                    id: uid('email'),
-                    sentAt: new Date().toISOString(),
-                    sentBy: currentUser?.name ?? 'System',
-                  },
-                ],
-              }
-            : c,
-        ),
-      );
-    },
-    [currentUser],
-  );
+  const addCandidateEmail: AtsStore['addCandidateEmail'] = (id, email) => {
+    const log: EmailLog = {
+      id: uid('e'),
+      ...email,
+      sentAt: new Date().toISOString(),
+      sentBy: currentUser?.name ?? 'System',
+    };
+    setCandidates((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, emails: [log, ...c.emails] } : c)),
+    );
+  };
 
-  const addCustomField = useCallback((f: Omit<CustomFieldDef, 'id'>) => {
+  const addCustomField: AtsStore['addCustomField'] = (f) => {
     setCustomFields((prev) => [...prev, { ...f, id: uid('cf') }]);
-  }, []);
+  };
 
-  const deleteCustomField = useCallback((id: string) => {
+  const deleteCustomField: AtsStore['deleteCustomField'] = (id) => {
     setCustomFields((prev) => prev.filter((f) => f.id !== id));
-  }, []);
+  };
 
-  const importCandidates = useCallback<AtsStore['importCandidates']>(
-    (rows) => {
-      const errors: string[] = [];
-      let imported = 0;
-      let skipped = 0;
-      const validStages: StageName[] = ['Applied', 'Screening', 'Interviews', 'Offer', 'Hired', 'Rejected', 'Onboarded'];
-      setCandidates((prev) => {
-        const next = [...prev];
-        const existingEmails = new Set(next.map((c) => c.email.toLowerCase()));
-        rows.forEach((row, idx) => {
-          if (!row.name || !row.email) {
-            errors.push(`Row ${idx + 1}: missing name or email`);
-            skipped++;
-            return;
-          }
-          if (existingEmails.has(row.email.toLowerCase())) {
-            errors.push(`Row ${idx + 1}: duplicate email ${row.email}`);
-            skipped++;
-            return;
-          }
-          const job = jobs.find((j) => j.title.toLowerCase() === row.jobTitle.toLowerCase());
-          if (!job) {
-            errors.push(`Row ${idx + 1}: unknown job title "${row.jobTitle}"`);
-            skipped++;
-            return;
-          }
-          const stage = (validStages.includes(row.stage as StageName) ? row.stage : 'Applied') as StageName;
-          const now = new Date().toISOString();
-          next.unshift({
-            id: uid('cand'),
-            jobId: job.id,
-            name: row.name,
-            email: row.email,
-            phone: row.phone,
-            linkedin: '',
-            source: 'CSV Import',
-            stage,
-            customFields: {},
-            documents: [],
-            stageHistory: [{ stage, changedAt: now, changedBy: 'CSV Import' }],
-            notes: [],
-            emails: [],
-            createdAt: now,
-          });
-          existingEmails.add(row.email.toLowerCase());
-          imported++;
-        });
-        return next;
+  const importCandidates: AtsStore['importCandidates'] = (rows) => {
+    let imported = 0;
+    let skipped = 0;
+    const errors: string[] = [];
+    const now = new Date().toISOString();
+    const newCandidates: Candidate[] = [];
+    const existingEmails = new Set(candidates.map((c) => c.email.toLowerCase()));
+    const validStages: StageName[] = ['Applied', 'Screening', 'Interview', 'Offer', 'Hired', 'Rejected'];
+
+    rows.forEach((row, idx) => {
+      if (!row.name || !row.email) {
+        errors.push(`Row ${idx + 1}: missing name or email`);
+        skipped++;
+        return;
+      }
+      if (existingEmails.has(row.email.toLowerCase())) {
+        errors.push(`Row ${idx + 1}: duplicate email ${row.email}`);
+        skipped++;
+        return;
+      }
+      const job = jobs.find((j) => j.title.toLowerCase() === row.jobTitle.toLowerCase());
+      const stage = (validStages.includes(row.stage as StageName) ? row.stage : 'Applied') as StageName;
+      newCandidates.push({
+        id: uid('c'),
+        name: row.name,
+        email: row.email,
+        phone: row.phone || undefined,
+        jobId: job?.id,
+        stage,
+        documents: [],
+        notes: [],
+        emails: [],
+        stageHistory: [{ stage, at: now, changedBy: 'CSV Import' }],
+        createdAt: now,
       });
-      return { imported, skipped, errors };
-    },
-    [jobs],
-  );
+      existingEmails.add(row.email.toLowerCase());
+      imported++;
+    });
+
+    if (newCandidates.length) {
+      setCandidates((prev) => [...newCandidates, ...prev]);
+    }
+    return { imported, skipped, errors };
+  };
 
   const value: AtsStore = {
     currentUser,
