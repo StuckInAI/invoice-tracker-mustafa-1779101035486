@@ -1,0 +1,93 @@
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: var(--space-4);
+}
+.jobCard {
+  padding: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.cardTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-2);
+}
+.statusOpen, .statusClosed {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 3px 10px;
+  border-radius: 999px;
+}
+.statusOpen {
+  background: #d1fae5;
+  color: #047857;
+}
+.statusClosed {
+  background: var(--color-surface-alt);
+  color: var(--color-text-muted);
+}
+.pipelineTag {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  background: var(--color-surface-alt);
+  padding: 3px 10px;
+  border-radius: 999px;
+}
+.jobTitle {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-text);
+  margin-top: var(--space-1);
+}
+.jobTitle:hover {
+  color: var(--color-primary);
+}
+.jobMeta {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+.jobDesc {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  margin-top: var(--space-2);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.jobFooter {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border);
+}
+.jobStat {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+.jobStat strong {
+  color: var(--color-text);
+  font-weight: 600;
+}
+.jobActions {
+  display: flex;
+  gap: 2px;
+}
+.createdAt {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  margin-top: var(--space-2);
+}
+.formGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+}
+.full {
+  grid-column: 1 / -1;
+}

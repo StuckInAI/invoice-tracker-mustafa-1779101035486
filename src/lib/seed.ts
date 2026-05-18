@@ -1,0 +1,150 @@
+import type { Candidate, CustomFieldDef, Job, User } from '@/types';
+
+export const SEED_USERS: User[] = [
+  {
+    id: 'user_admin',
+    name: 'Avery Admin',
+    email: 'admin@talent.co',
+    password: 'admin123',
+    role: 'Admin',
+    active: true,
+    createdAt: new Date('2024-01-01').toISOString(),
+  },
+  {
+    id: 'user_recruiter1',
+    name: 'Riley Recruiter',
+    email: 'riley@talent.co',
+    password: 'recruiter123',
+    role: 'Recruiter',
+    active: true,
+    createdAt: new Date('2024-01-15').toISOString(),
+  },
+];
+
+export const SEED_JOBS: Job[] = [
+  {
+    id: 'job_1',
+    title: 'Senior Frontend Engineer',
+    department: 'Engineering',
+    location: 'Remote',
+    description: 'Build delightful UIs with React and TypeScript.',
+    status: 'Open',
+    pipelineType: 'Onboarding',
+    createdAt: new Date('2024-09-01').toISOString(),
+  },
+  {
+    id: 'job_2',
+    title: 'Product Designer',
+    department: 'Design',
+    location: 'New York, NY',
+    description: 'Own design across product surfaces.',
+    status: 'Open',
+    pipelineType: 'Standard',
+    createdAt: new Date('2024-10-10').toISOString(),
+  },
+];
+
+export const SEED_CUSTOM_FIELDS: CustomFieldDef[] = [
+  { id: 'cf_1', name: 'Years of Experience', type: 'number' },
+  { id: 'cf_2', name: 'Available From', type: 'date' },
+  {
+    id: 'cf_3',
+    name: 'Work Authorization',
+    type: 'dropdown',
+    options: ['Citizen', 'Permanent Resident', 'Visa Required'],
+  },
+];
+
+export const SEED_CANDIDATES: Candidate[] = [
+  {
+    id: 'cand_1',
+    jobId: 'job_1',
+    name: 'Jordan Chen',
+    email: 'jordan.chen@example.com',
+    phone: '555-0123',
+    linkedin: 'linkedin.com/in/jordanchen',
+    source: 'LinkedIn',
+    stage: 'Interviews',
+    customFields: { cf_1: '7', cf_3: 'Citizen' },
+    documents: [
+      { id: 'doc_1', name: 'jordan_resume.pdf', size: 124000, uploadedAt: new Date('2024-10-15').toISOString() },
+    ],
+    stageHistory: [
+      { stage: 'Applied', changedAt: new Date('2024-10-15').toISOString(), changedBy: 'System' },
+      { stage: 'Screening', changedAt: new Date('2024-10-20').toISOString(), changedBy: 'Riley Recruiter' },
+      { stage: 'Interviews', changedAt: new Date('2024-10-28').toISOString(), changedBy: 'Riley Recruiter' },
+    ],
+    notes: [
+      {
+        id: 'note_1',
+        authorId: 'user_recruiter1',
+        authorName: 'Riley Recruiter',
+        content: 'Strong React fundamentals. Loved the system-design discussion.',
+        createdAt: new Date('2024-10-28').toISOString(),
+      },
+    ],
+    emails: [],
+    createdAt: new Date('2024-10-15').toISOString(),
+  },
+  {
+    id: 'cand_2',
+    jobId: 'job_1',
+    name: 'Priya Patel',
+    email: 'priya.p@example.com',
+    phone: '555-0145',
+    linkedin: 'linkedin.com/in/priyapatel',
+    source: 'Referral',
+    stage: 'Applied',
+    customFields: { cf_1: '4' },
+    documents: [],
+    stageHistory: [
+      { stage: 'Applied', changedAt: new Date('2024-11-02').toISOString(), changedBy: 'System' },
+    ],
+    notes: [],
+    emails: [],
+    createdAt: new Date('2024-11-02').toISOString(),
+  },
+  {
+    id: 'cand_3',
+    jobId: 'job_2',
+    name: 'Marcus Lee',
+    email: 'marcus.lee@example.com',
+    phone: '555-0188',
+    linkedin: '',
+    source: 'Company Website',
+    stage: 'Offer',
+    customFields: {},
+    documents: [],
+    stageHistory: [
+      { stage: 'Applied', changedAt: new Date('2024-09-05').toISOString(), changedBy: 'System' },
+      { stage: 'Screening', changedAt: new Date('2024-09-10').toISOString(), changedBy: 'Avery Admin' },
+      { stage: 'Interviews', changedAt: new Date('2024-09-20').toISOString(), changedBy: 'Avery Admin' },
+      { stage: 'Offer', changedAt: new Date('2024-10-01').toISOString(), changedBy: 'Avery Admin' },
+    ],
+    notes: [],
+    emails: [],
+    createdAt: new Date('2024-09-05').toISOString(),
+  },
+  {
+    id: 'cand_4',
+    jobId: 'job_2',
+    name: 'Sara Kim',
+    email: 'sara.kim@example.com',
+    phone: '555-0199',
+    linkedin: 'linkedin.com/in/sarakim',
+    source: 'LinkedIn',
+    stage: 'Hired',
+    customFields: {},
+    documents: [],
+    stageHistory: [
+      { stage: 'Applied', changedAt: new Date('2024-08-01').toISOString(), changedBy: 'System' },
+      { stage: 'Screening', changedAt: new Date('2024-08-05').toISOString(), changedBy: 'Avery Admin' },
+      { stage: 'Interviews', changedAt: new Date('2024-08-15').toISOString(), changedBy: 'Avery Admin' },
+      { stage: 'Offer', changedAt: new Date('2024-08-22').toISOString(), changedBy: 'Avery Admin' },
+      { stage: 'Hired', changedAt: new Date('2024-09-01').toISOString(), changedBy: 'Avery Admin' },
+    ],
+    notes: [],
+    emails: [],
+    createdAt: new Date('2024-08-01').toISOString(),
+  },
+];
