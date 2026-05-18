@@ -1,1 +1,1 @@
-I need to see additional files to fix the errors properly: src/lib/pipeline.ts, src/types/index.ts, src/pages/AdminPage.tsx, src/pages/JobDetailPage.tsx
+Please provide the contents of src/types/index.ts, src/lib/seed.ts, src/lib/pipeline.ts, src/lib/emailTemplates.ts, src/lib/storage.ts, src/providers/AtsProvider.tsx, src/pages/CandidateDetailPage.tsx, src/pages/DashboardPage.tsx, src/pages/JobsPage.tsx, and src/pages/JobDetailPage.tsx to properly fix the build errors.
