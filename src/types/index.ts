@@ -1,5 +1,3 @@
-export type Role = 'Admin' | 'Recruiter' | 'Viewer';
-
 export type StageName =
   | 'Applied'
   | 'Screening'
@@ -8,14 +6,20 @@ export type StageName =
   | 'Hired'
   | 'Rejected';
 
+export type Role = 'Admin' | 'Recruiter' | 'Hiring Manager';
+
+export type PipelineType = 'Standard' | 'Technical' | 'Executive';
+
+export type EmploymentType = 'Full-time' | 'Part-time' | 'Contract' | 'Internship';
+
 export interface User {
   id: string;
   name: string;
   email: string;
-  password: string;
   role: Role;
   active: boolean;
   createdAt: string;
+  passwordHash: string;
 }
 
 export interface Job {
@@ -23,9 +27,11 @@ export interface Job {
   title: string;
   department: string;
   location: string;
-  type: string;
   status: 'Open' | 'Closed' | 'Draft';
   description: string;
+  requirements: string;
+  employmentType: EmploymentType;
+  pipelineType: PipelineType;
   createdAt: string;
 }
 
@@ -65,22 +71,21 @@ export interface Candidate {
   jobId: string;
   jobTitle: string;
   stage: StageName;
-  tags: string[];
-  resumeUrl?: string;
-  linkedinUrl?: string;
-  source?: string;
   rating: number;
+  tags: string[];
   customFields: Record<string, string>;
+  linkedinUrl: string;
+  source: string;
+  createdAt: string;
   stageHistory: StageHistoryEntry[];
   notes: Note[];
   emails: EmailLog[];
   documents: Document[];
-  createdAt: string;
 }
 
 export interface CustomFieldDef {
   id: string;
-  name: string;
-  fieldType: 'text' | 'number' | 'date' | 'select';
+  label: string;
+  type: 'text' | 'number' | 'date' | 'select';
   options?: string[];
 }
