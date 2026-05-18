@@ -1,21 +1,27 @@
 import { useState } from 'react';
-import type { CustomFieldDef, User } from '@/types';
 import { useAts } from '@/hooks/useAtsStore';
 import PageHeader from '@/components/PageHeader';
-import Modal from '@/components/Modal';
+import type { CustomFieldDef, User } from '@/types';
+
+const inputStyle: React.CSSProperties = {
+  width: '100%',
+  padding: '8px 12px',
+  borderRadius: 6,
+  border: '1px solid var(--color-border)',
+  fontSize: 13,
+  color: 'var(--color-text)',
+  background: 'var(--color-surface)',
+  boxSizing: 'border-box',
+};
 
 export default function AdminPage() {
   const { users, addUser, toggleUserActive, customFields, addCustomField, deleteCustomField } = useAts();
 
-  const [showUserModal, setShowUserModal] = useState(false);
+  // User form
   const [userName, setUserName] = useState('');
   const [userEmail, setUserEmail] = useState('');
   const [userPassword, setUserPassword] = useState('');
   const [userRole, setUserRole] = useState<User['role']>('Recruiter');
-
-  const [showFieldModal, setShowFieldModal] = useState(false);
-  const [fieldName, setFieldName] = useState('');
-  const [fieldType, setFieldType] = useState<CustomFieldDef['fieldType']>('text');
 
   const handleAddUser = () => {
     if (!userName.trim() || !userEmail.trim() || !userPassword.trim()) return;
@@ -29,72 +35,71 @@ export default function AdminPage() {
     setUserName('');
     setUserEmail('');
     setUserPassword('');
-    setUserRole('Recruiter');
-    setShowUserModal(false);
   };
+
+  // Custom field form
+  const [fieldLabel, setFieldLabel] = useState('');
+  const [fieldType, setFieldType] = useState<CustomFieldDef['type']>('text');
 
   const handleAddField = () => {
-    if (!fieldName.trim()) return;
+    if (!fieldLabel.trim()) return;
     addCustomField({
-      name: fieldName.trim(),
-      fieldType,
+      label: fieldLabel.trim(),
+      type: fieldType,
     });
-    setFieldName('');
+    setFieldLabel('');
     setFieldType('text');
-    setShowFieldModal(false);
   };
 
-  const btnPrimary: React.CSSProperties = {
-    padding: '8px 16px', borderRadius: 8, border: 'none',
-    background: 'var(--color-primary)', color: 'white',
-    fontWeight: 600, fontSize: 13, cursor: 'pointer',
-  };
-  const btnSecondary: React.CSSProperties = {
-    padding: '8px 16px', borderRadius: 8,
+  const cardStyle: React.CSSProperties = {
+    background: 'var(--color-surface)',
+    borderRadius: 10,
     border: '1px solid var(--color-border)',
-    background: 'transparent', fontSize: 13, cursor: 'pointer',
+    padding: 24,
+    marginBottom: 24,
   };
-  const inputStyle: React.CSSProperties = {
-    width: '100%', padding: '8px 12px', borderRadius: 8,
-    border: '1px solid var(--color-border)', fontSize: 13,
-    background: 'var(--color-surface)', boxSizing: 'border-box',
+
+  const thStyle: React.CSSProperties = {
+    textAlign: 'left',
+    padding: '8px 12px',
+    fontSize: 12,
+    fontWeight: 600,
+    color: 'var(--color-text-muted)',
+    textTransform: 'uppercase',
+    letterSpacing: '0.05em',
+    borderBottom: '1px solid var(--color-border)',
   };
 
   return (
     <div>
-      <PageHeader
-        title="Admin"
-        subtitle="Manage users and custom fields"
-        actions={
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button style={btnPrimary} onClick={() => setShowUserModal(true)}>+ Add User</button>
-            <button style={btnPrimary} onClick={() => setShowFieldModal(true)}>+ Add Field</button>
-          </div>
-        }
-      />
+      <PageHeader title="Admin" subtitle="Manage users and system configuration" />
 
-      {/* Users table */}
-      <section style={{ marginBottom: 32 }}>
-        <h2 style={{ fontSize: 15, fontWeight: 600, marginBottom: 12 }}>Users</h2>
+      {/* Users */}
+      <div style={cardStyle}>
+        <h2 style={{ fontSize: 15, fontWeight: 600, marginBottom: 16 }}>Users</h2>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead>
-            <tr style={{ borderBottom: '1px solid var(--color-border)', textAlign: 'left' }}>
-              <th style={{ padding: '8px 12px' }}>Name</th>
-              <th style={{ padding: '8px 12px' }}>Email</th>
-              <th style={{ padding: '8px 12px' }}>Role</th>
-              <th style={{ padding: '8px 12px' }}>Status</th>
-              <th style={{ padding: '8px 12px' }}>Actions</th>
+            <tr>
+              <th style={thStyle}>Name</th>
+              <th style={thStyle}>Email</th>
+              <th style={thStyle}>Role</th>
+              <th style={thStyle}>Status</th>
+              <th style={thStyle}>Actions</th>
             </tr>
           </thead>
           <tbody>
             {users.map((u) => (
-              <tr key={u.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
+              <tr key={u.id}>
                 <td style={{ padding: '8px 12px' }}>{u.name}</td>
                 <td style={{ padding: '8px 12px' }}>{u.email}</td>
                 <td style={{ padding: '8px 12px' }}>{u.role}</td>
                 <td style={{ padding: '8px 12px' }}>
                   <span style={{
-                    padding: '2px 8px', borderRadius: 999, fontSize: 11,
+                    display: 'inline-block',
+                    padding: '2px 8px',
+                    borderRadius: 999,
+                    fontSize: 11,
+                    fontWeight: 600,
                     background: u.active ? '#d1fae5' : '#fee2e2',
                     color: u.active ? '#065f46' : '#991b1b',
                   }}>
@@ -104,7 +109,12 @@ export default function AdminPage() {
                 <td style={{ padding: '8px 12px' }}>
                   <button
                     onClick={() => toggleUserActive(u.id)}
-                    style={{ ...btnSecondary, padding: '4px 10px', fontSize: 12 }}
+                    style={{
+                      padding: '4px 10px', fontSize: 12, borderRadius: 6,
+                      border: '1px solid var(--color-border)',
+                      background: 'transparent', cursor: 'pointer',
+                      color: 'var(--color-text-muted)',
+                    }}
                   >
                     {u.active ? 'Deactivate' : 'Activate'}
                   </button>
@@ -113,102 +123,115 @@ export default function AdminPage() {
             ))}
           </tbody>
         </table>
-      </section>
 
-      {/* Custom fields table */}
-      <section>
-        <h2 style={{ fontSize: 15, fontWeight: 600, marginBottom: 12 }}>Custom Fields</h2>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-          <thead>
-            <tr style={{ borderBottom: '1px solid var(--color-border)', textAlign: 'left' }}>
-              <th style={{ padding: '8px 12px' }}>Name</th>
-              <th style={{ padding: '8px 12px' }}>Type</th>
-              <th style={{ padding: '8px 12px' }}>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {customFields.map((f) => (
-              <tr key={f.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
-                <td style={{ padding: '8px 12px' }}>{f.name}</td>
-                <td style={{ padding: '8px 12px' }}>{f.fieldType}</td>
-                <td style={{ padding: '8px 12px' }}>
-                  <button
-                    onClick={() => deleteCustomField(f.id)}
-                    style={{ ...btnSecondary, padding: '4px 10px', fontSize: 12, color: '#dc2626' }}
-                  >
-                    Delete
-                  </button>
-                </td>
+        {/* Add user form */}
+        <div style={{ marginTop: 20, paddingTop: 20, borderTop: '1px solid var(--color-border)' }}>
+          <h3 style={{ fontSize: 13, fontWeight: 600, marginBottom: 12 }}>Add User</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr auto auto', gap: 8, alignItems: 'end' }}>
+            <div>
+              <label style={{ fontSize: 12, color: 'var(--color-text-muted)', display: 'block', marginBottom: 4 }}>Name</label>
+              <input style={inputStyle} value={userName} onChange={(e) => setUserName(e.target.value)} placeholder="Full name" />
+            </div>
+            <div>
+              <label style={{ fontSize: 12, color: 'var(--color-text-muted)', display: 'block', marginBottom: 4 }}>Email</label>
+              <input style={inputStyle} type="email" value={userEmail} onChange={(e) => setUserEmail(e.target.value)} placeholder="email@company.com" />
+            </div>
+            <div>
+              <label style={{ fontSize: 12, color: 'var(--color-text-muted)', display: 'block', marginBottom: 4 }}>Password</label>
+              <input style={inputStyle} type="password" value={userPassword} onChange={(e) => setUserPassword(e.target.value)} placeholder="Password" />
+            </div>
+            <div>
+              <label style={{ fontSize: 12, color: 'var(--color-text-muted)', display: 'block', marginBottom: 4 }}>Role</label>
+              <select style={inputStyle} value={userRole} onChange={(e) => setUserRole(e.target.value as User['role'])}>
+                <option>Admin</option>
+                <option>Recruiter</option>
+                <option>Hiring Manager</option>
+              </select>
+            </div>
+            <button
+              onClick={handleAddUser}
+              style={{
+                padding: '8px 16px', borderRadius: 6,
+                background: 'var(--color-primary)', color: 'white',
+                border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600,
+                whiteSpace: 'nowrap',
+              }}
+            >
+              Add User
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Custom Fields */}
+      <div style={cardStyle}>
+        <h2 style={{ fontSize: 15, fontWeight: 600, marginBottom: 16 }}>Custom Candidate Fields</h2>
+        {customFields.length === 0 ? (
+          <p style={{ color: 'var(--color-text-muted)', fontSize: 13 }}>No custom fields defined yet.</p>
+        ) : (
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, marginBottom: 16 }}>
+            <thead>
+              <tr>
+                <th style={thStyle}>Label</th>
+                <th style={thStyle}>Type</th>
+                <th style={thStyle}>Actions</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </section>
+            </thead>
+            <tbody>
+              {customFields.map((f) => (
+                <tr key={f.id}>
+                  <td style={{ padding: '8px 12px' }}>{f.label}</td>
+                  <td style={{ padding: '8px 12px' }}>{f.type}</td>
+                  <td style={{ padding: '8px 12px' }}>
+                    <button
+                      onClick={() => deleteCustomField(f.id)}
+                      style={{
+                        padding: '4px 10px', fontSize: 12, borderRadius: 6,
+                        border: '1px solid #fca5a5',
+                        background: '#fee2e2', cursor: 'pointer',
+                        color: '#991b1b',
+                      }}
+                    >
+                      Delete
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
 
-      {/* Add User Modal */}
-      <Modal
-        open={showUserModal}
-        onClose={() => setShowUserModal(false)}
-        title="Add User"
-        footer={
-          <>
-            <button style={btnSecondary} onClick={() => setShowUserModal(false)}>Cancel</button>
-            <button style={btnPrimary} onClick={handleAddUser}>Add User</button>
-          </>
-        }
-      >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <div>
-            <label style={{ fontSize: 13, fontWeight: 500, display: 'block', marginBottom: 4 }}>Name</label>
-            <input style={inputStyle} value={userName} onChange={(e) => setUserName(e.target.value)} placeholder="Full name" />
-          </div>
-          <div>
-            <label style={{ fontSize: 13, fontWeight: 500, display: 'block', marginBottom: 4 }}>Email</label>
-            <input style={inputStyle} type="email" value={userEmail} onChange={(e) => setUserEmail(e.target.value)} placeholder="Email address" />
-          </div>
-          <div>
-            <label style={{ fontSize: 13, fontWeight: 500, display: 'block', marginBottom: 4 }}>Password</label>
-            <input style={inputStyle} type="password" value={userPassword} onChange={(e) => setUserPassword(e.target.value)} placeholder="Password" />
-          </div>
-          <div>
-            <label style={{ fontSize: 13, fontWeight: 500, display: 'block', marginBottom: 4 }}>Role</label>
-            <select style={inputStyle} value={userRole} onChange={(e) => setUserRole(e.target.value as User['role'])}>
-              <option value="Admin">Admin</option>
-              <option value="Recruiter">Recruiter</option>
-              <option value="Viewer">Viewer</option>
-            </select>
+        {/* Add field form */}
+        <div style={{ paddingTop: customFields.length > 0 ? 0 : 8 }}>
+          <h3 style={{ fontSize: 13, fontWeight: 600, marginBottom: 12 }}>Add Custom Field</h3>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
+            <div style={{ flex: 1 }}>
+              <label style={{ fontSize: 12, color: 'var(--color-text-muted)', display: 'block', marginBottom: 4 }}>Field Label</label>
+              <input style={inputStyle} value={fieldLabel} onChange={(e) => setFieldLabel(e.target.value)} placeholder="e.g. LinkedIn URL" />
+            </div>
+            <div style={{ width: 140 }}>
+              <label style={{ fontSize: 12, color: 'var(--color-text-muted)', display: 'block', marginBottom: 4 }}>Type</label>
+              <select style={inputStyle} value={fieldType} onChange={(e) => setFieldType(e.target.value as CustomFieldDef['type'])}>
+                <option value="text">Text</option>
+                <option value="number">Number</option>
+                <option value="date">Date</option>
+                <option value="select">Select</option>
+              </select>
+            </div>
+            <button
+              onClick={handleAddField}
+              style={{
+                padding: '8px 16px', borderRadius: 6,
+                background: 'var(--color-primary)', color: 'white',
+                border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600,
+                whiteSpace: 'nowrap',
+              }}
+            >
+              Add Field
+            </button>
           </div>
         </div>
-      </Modal>
-
-      {/* Add Field Modal */}
-      <Modal
-        open={showFieldModal}
-        onClose={() => setShowFieldModal(false)}
-        title="Add Custom Field"
-        footer={
-          <>
-            <button style={btnSecondary} onClick={() => setShowFieldModal(false)}>Cancel</button>
-            <button style={btnPrimary} onClick={handleAddField}>Add Field</button>
-          </>
-        }
-      >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <div>
-            <label style={{ fontSize: 13, fontWeight: 500, display: 'block', marginBottom: 4 }}>Field Name</label>
-            <input style={inputStyle} value={fieldName} onChange={(e) => setFieldName(e.target.value)} placeholder="e.g. LinkedIn Score" />
-          </div>
-          <div>
-            <label style={{ fontSize: 13, fontWeight: 500, display: 'block', marginBottom: 4 }}>Field Type</label>
-            <select style={inputStyle} value={fieldType} onChange={(e) => setFieldType(e.target.value as CustomFieldDef['fieldType'])}>
-              <option value="text">Text</option>
-              <option value="number">Number</option>
-              <option value="date">Date</option>
-              <option value="select">Select</option>
-            </select>
-          </div>
-        </div>
-      </Modal>
+      </div>
     </div>
   );
 }

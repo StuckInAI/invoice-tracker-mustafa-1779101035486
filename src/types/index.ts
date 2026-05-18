@@ -6,20 +6,16 @@ export type StageName =
   | 'Hired'
   | 'Rejected';
 
-export type Role = 'Admin' | 'Recruiter' | 'Hiring Manager';
-
-export type PipelineType = 'Standard' | 'Technical' | 'Executive';
-
-export type EmploymentType = 'Full-time' | 'Part-time' | 'Contract' | 'Internship';
+export type UserRole = 'Admin' | 'Recruiter' | 'Hiring Manager';
 
 export interface User {
   id: string;
   name: string;
   email: string;
-  role: Role;
+  password: string;
+  role: UserRole;
   active: boolean;
   createdAt: string;
-  passwordHash: string;
 }
 
 export interface Job {
@@ -27,25 +23,24 @@ export interface Job {
   title: string;
   department: string;
   location: string;
-  status: 'Open' | 'Closed' | 'Draft';
+  type: string;
   description: string;
-  requirements: string;
-  employmentType: EmploymentType;
-  pipelineType: PipelineType;
+  status: 'Open' | 'Closed' | 'Draft';
   createdAt: string;
+  hiringManagerId?: string;
 }
 
 export interface StageHistoryEntry {
   stage: StageName;
   movedAt: string;
-  movedBy: string;
+  movedBy?: string;
 }
 
 export interface Note {
   id: string;
   content: string;
   createdAt: string;
-  createdBy: string;
+  createdBy?: string;
 }
 
 export interface EmailLog {
@@ -53,7 +48,7 @@ export interface EmailLog {
   subject: string;
   body: string;
   sentAt: string;
-  sentBy: string;
+  sentBy?: string;
 }
 
 export interface Document {
@@ -63,24 +58,25 @@ export interface Document {
   uploadedAt: string;
 }
 
+export interface CustomFieldValue {
+  fieldId: string;
+  value: string;
+}
+
 export interface Candidate {
   id: string;
   name: string;
   email: string;
-  phone: string;
-  jobId: string;
-  jobTitle: string;
+  phone?: string;
+  jobId?: string;
   stage: StageName;
-  rating: number;
-  tags: string[];
-  customFields: Record<string, string>;
-  linkedinUrl: string;
-  source: string;
-  createdAt: string;
   stageHistory: StageHistoryEntry[];
   notes: Note[];
   emails: EmailLog[];
   documents: Document[];
+  customFields?: CustomFieldValue[];
+  source?: string;
+  createdAt: string;
 }
 
 export interface CustomFieldDef {

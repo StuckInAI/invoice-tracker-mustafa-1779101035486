@@ -1,145 +1,137 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { useState } from 'react';
 import { useAts } from '@/hooks/useAtsStore';
 import { getPipeline, STAGE_ORDER } from '@/lib/pipeline';
 import PageHeader from '@/components/PageHeader';
 import StageBadge from '@/components/StageBadge';
+import EmptyState from '@/components/EmptyState';
+import { Users } from 'lucide-react';
 import type { StageName } from '@/types';
 
 export default function JobDetailPage() {
   const { jobId } = useParams<{ jobId: string }>();
   const navigate = useNavigate();
-  const { jobs, candidates, moveCandidateStage, updateJob } = useAts();
+  const { jobs, candidates, moveCandidateStage } = useAts();
 
   const job = jobs.find((j) => j.id === jobId);
-  const pipeline = jobId ? getPipeline(jobId, candidates) : [];
+  if (!job) return <div style={{ padding: 24 }}>Job not found.</div>;
 
-  const [editingStatus, setEditingStatus] = useState(false);
+  const jobCandidates = candidates.filter((c) => c.jobId === jobId);
+  const totalCandidates = jobCandidates.length;
 
-  if (!job) {
-    return (
-      <div style={{ textAlign: 'center', padding: '48px 24px' }}>
-        <h2>Job not found</h2>
-        <button onClick={() => navigate('/jobs')} style={{ marginTop: 16, padding: '8px 16px', borderRadius: 8, border: '1px solid var(--color-border)', background: 'transparent', cursor: 'pointer' }}>Back to Jobs</button>
-      </div>
-    );
-  }
+  const stages = getPipeline(STAGE_ORDER);
 
-  const totalCandidates = candidates.filter((c) => c.jobId === jobId).length;
+  const byStage = (stage: StageName) => jobCandidates.filter((c) => c.stage === stage);
+
+  const btnStyle = (variant: 'primary' | 'secondary'): React.CSSProperties => ({
+    padding: '7px 14px',
+    borderRadius: 7,
+    fontSize: 13,
+    fontWeight: 600,
+    cursor: 'pointer',
+    border: variant === 'primary' ? 'none' : '1px solid var(--color-border)',
+    background: variant === 'primary' ? 'var(--color-primary)' : 'transparent',
+    color: variant === 'primary' ? 'white' : 'var(--color-text-muted)',
+  });
 
   return (
     <div>
       <PageHeader
         title={job.title}
-        subtitle={`${job.department} · ${job.location} · ${job.type}`}
+        subtitle={`${job.department} · ${job.location}${job.type ? ` · ${job.type}` : ''}`}
         actions={
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            {editingStatus ? (
-              <>
-                {(['Open', 'Closed', 'Draft'] as const).map((s) => (
-                  <button
-                    key={s}
-                    onClick={() => { updateJob(job.id, { status: s }); setEditingStatus(false); }}
-                    style={{
-                      padding: '6px 12px', borderRadius: 8, fontSize: 12, cursor: 'pointer',
-                      border: '1px solid var(--color-border)',
-                      background: job.status === s ? 'var(--color-primary)' : 'transparent',
-                      color: job.status === s ? 'white' : 'inherit',
-                      fontWeight: job.status === s ? 600 : 400,
-                    }}
-                  >
-                    {s}
-                  </button>
-                ))}
-                <button onClick={() => setEditingStatus(false)} style={{ padding: '6px 12px', borderRadius: 8, fontSize: 12, cursor: 'pointer', border: '1px solid var(--color-border)', background: 'transparent' }}>Cancel</button>
-              </>
-            ) : (
-              <button
-                onClick={() => setEditingStatus(true)}
-                style={{
-                  padding: '6px 14px', borderRadius: 8, border: '1px solid var(--color-border)',
-                  background: 'transparent', fontSize: 13, cursor: 'pointer',
-                }}
-              >
-                Status: {job.status}
-              </button>
-            )}
-            <button
-              onClick={() => navigate('/jobs')}
-              style={{ padding: '6px 14px', borderRadius: 8, border: '1px solid var(--color-border)', background: 'transparent', fontSize: 13, cursor: 'pointer' }}
-            >
-              ← Back
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button style={btnStyle('secondary')} onClick={() => navigate('/candidates/new')}>
+              + Add Candidate
             </button>
           </div>
         }
       />
 
-      {/* Summary */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12, marginBottom: 28 }}>
-        {[{ label: 'Total Candidates', value: totalCandidates }, { label: 'Department', value: job.department }, { label: 'Location', value: job.location }, { label: 'Type', value: job.type }].map((item) => (
-          <div key={item.label} style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 10, padding: '14px 16px' }}>
-            <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginBottom: 4 }}>{item.label}</div>
-            <div style={{ fontSize: 18, fontWeight: 700 }}>{item.value}</div>
+      {/* Stats row */}
+      <div style={{ display: 'flex', gap: 12, marginBottom: 24, flexWrap: 'wrap' }}>
+        {[{ label: 'Total Candidates', value: totalCandidates }, { label: 'Department', value: job.department }, { label: 'Location', value: job.location }, { label: 'Type', value: job.type ?? '—' }].map((item) => (
+          <div key={item.label} style={{
+            background: 'var(--color-surface)', borderRadius: 8,
+            border: '1px solid var(--color-border)',
+            padding: '12px 16px', minWidth: 120, flex: 1,
+          }}>
+            <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--color-primary)' }}>{item.value}</div>
+            <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 2 }}>{item.label}</div>
           </div>
         ))}
       </div>
 
-      {/* Pipeline board */}
-      <h2 style={{ fontSize: 15, fontWeight: 600, marginBottom: 14 }}>Pipeline Board</h2>
-      <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 8 }}>
-        {pipeline.map(({ stage, candidates: stageCandidates }) => (
-          <div
-            key={stage}
-            style={{
-              minWidth: 220,
-              background: 'var(--color-surface)',
-              border: '1px solid var(--color-border)',
-              borderRadius: 10,
-              padding: 12,
-              flex: '0 0 auto',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-              <StageBadge stage={stage} />
-              <span style={{ fontSize: 12, color: 'var(--color-text-muted)', background: 'var(--color-bg)', borderRadius: 999, padding: '1px 8px', border: '1px solid var(--color-border)' }}>
-                {stageCandidates.length}
-              </span>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {stageCandidates.map((c) => (
-                <div
-                  key={c.id}
-                  onClick={() => navigate(`/candidates/${c.id}`)}
-                  style={{
-                    background: 'var(--color-bg)',
-                    border: '1px solid var(--color-border)',
-                    borderRadius: 8,
-                    padding: '10px 12px',
-                    cursor: 'pointer',
-                  }}
-                >
-                  <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 4 }}>{c.name}</div>
-                  <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 8 }}>{c.email}</div>
-                  <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                    {STAGE_ORDER.filter((s) => s !== stage && s !== 'Rejected').map((targetStage) => (
-                      <button
-                        key={targetStage}
-                        onClick={(e) => { e.stopPropagation(); moveCandidateStage(c.id, targetStage as StageName); }}
+      {/* Kanban board */}
+      <div style={{ overflowX: 'auto', paddingBottom: 8 }}>
+        <div style={{ display: 'flex', gap: 12, minWidth: 'max-content' }}>
+          {stages.map((stage) => {
+            const stageCandidates = byStage(stage);
+            return (
+              <div key={stage} style={{
+                width: 220, flexShrink: 0,
+                background: 'var(--color-surface)',
+                borderRadius: 10,
+                border: '1px solid var(--color-border)',
+                display: 'flex', flexDirection: 'column',
+              }}>
+                <div style={{
+                  padding: '10px 14px', borderBottom: '1px solid var(--color-border)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                }}>
+                  <StageBadge stage={stage} />
+                  <span style={{ fontSize: 12, color: 'var(--color-text-muted)', fontWeight: 600 }}>
+                    {stageCandidates.length}
+                  </span>
+                </div>
+                <div style={{ flex: 1, padding: 8, display: 'flex', flexDirection: 'column', gap: 6, minHeight: 100 }}>
+                  {stageCandidates.length === 0 ? (
+                    <EmptyState title="No candidates" icon={<Users size={20} />} />
+                  ) : (
+                    stageCandidates.map((c) => (
+                      <div
+                        key={c.id}
+                        onClick={() => navigate(`/candidates/${c.id}`)}
                         style={{
-                          fontSize: 10, padding: '2px 6px', borderRadius: 4,
+                          background: 'var(--color-bg)',
+                          borderRadius: 8, padding: '10px 12px',
                           border: '1px solid var(--color-border)',
-                          background: 'var(--color-surface)', cursor: 'pointer',
+                          cursor: 'pointer',
+                          transition: 'box-shadow 0.15s',
                         }}
                       >
-                        → {targetStage}
-                      </button>
-                    ))}
-                  </div>
+                        <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 4, color: 'var(--color-text)' }}>
+                          {c.name}
+                        </div>
+                        <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginBottom: 8 }}>
+                          {c.email}
+                        </div>
+                        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                          {stages
+                            .filter((s) => s !== stage && s !== 'Rejected')
+                            .slice(0, 2)
+                            .map((s) => (
+                              <button
+                                key={s}
+                                onClick={(e) => { e.stopPropagation(); moveCandidateStage(c.id, s); }}
+                                style={{
+                                  fontSize: 10, padding: '2px 6px', borderRadius: 4,
+                                  border: '1px solid var(--color-border)',
+                                  background: 'var(--color-surface)',
+                                  cursor: 'pointer', color: 'var(--color-text-muted)',
+                                }}
+                              >
+                                → {s}
+                              </button>
+                            ))}
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
-              ))}
-            </div>
-          </div>
-        ))}
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
