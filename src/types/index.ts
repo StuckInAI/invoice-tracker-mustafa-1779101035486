@@ -1,13 +1,5 @@
 export type Role = 'Admin' | 'Recruiter' | 'Hiring Manager';
 
-export type StageName =
-  | 'Applied'
-  | 'Screening'
-  | 'Interviews'
-  | 'Offer'
-  | 'Hired'
-  | 'Rejected';
-
 export type User = {
   id: string;
   name: string;
@@ -18,73 +10,87 @@ export type User = {
   createdAt: string;
 };
 
+export type Session = {
+  userId: string;
+};
+
+export type StageName =
+  | 'Applied'
+  | 'Screening'
+  | 'Interviews'
+  | 'Offer'
+  | 'Hired'
+  | 'Rejected'
+  | 'Onboarded';
+
+export type JobStatus = 'Open' | 'On Hold' | 'Closed';
+
+export type PipelineType = 'Standard' | 'Engineering' | 'Sales' | 'Executive';
+
 export type Job = {
   id: string;
   title: string;
   department: string;
   location: string;
-  employmentType: 'Full-time' | 'Part-time' | 'Contract' | 'Internship';
-  status: 'Open' | 'On Hold' | 'Closed';
-  description: string;
-  requirements: string;
-  hiringManagerId: string;
-  recruiterId: string;
+  status: JobStatus;
+  pipelineType: PipelineType;
+  employmentType?: string;
+  description?: string;
+  requirements?: string;
+  hiringManagerId?: string;
+  recruiterId?: string;
   createdAt: string;
-};
-
-export type CustomFieldType = 'text' | 'number' | 'date' | 'select';
-
-export type CustomFieldDef = {
-  id: string;
-  label: string;
-  type: CustomFieldType;
-  options?: string[];
 };
 
 export type StageHistoryEntry = {
   stage: StageName;
-  changedAt: string;
-  changedBy: string;
+  at: string;
+  by?: string;
 };
 
 export type InterviewNote = {
   id: string;
   content: string;
-  authorId: string;
-  authorName: string;
   createdAt: string;
-};
-
-export type EmailLog = {
-  id: string;
-  subject: string;
-  body: string;
-  to: string;
-  sentAt: string;
-  sentBy: string;
+  createdBy: string;
 };
 
 export type CandidateDocument = {
   id: string;
   name: string;
-  type: string;
-  size: number;
+  url?: string;
   uploadedAt: string;
+};
+
+export type EmailLog = {
+  id: string;
+  to: string;
+  subject: string;
+  body: string;
+  sentAt: string;
+  sentBy: string;
 };
 
 export type Candidate = {
   id: string;
   name: string;
   email: string;
-  phone: string;
+  phone?: string;
+  linkedin?: string;
   jobId: string;
   stage: StageName;
-  source: string;
-  resumeText?: string;
-  customFields: Record<string, string | number>;
+  source?: string;
+  customFields: Record<string, string>;
   stageHistory: StageHistoryEntry[];
   notes: InterviewNote[];
   emails: EmailLog[];
   documents: CandidateDocument[];
   createdAt: string;
+};
+
+export type CustomFieldDef = {
+  id: string;
+  label: string;
+  type: 'text' | 'number' | 'select';
+  options?: string[];
 };
