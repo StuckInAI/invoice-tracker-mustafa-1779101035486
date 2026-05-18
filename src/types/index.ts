@@ -7,7 +7,6 @@ export type User = {
   role: Role;
   active: boolean;
   createdAt: string;
-  // Demo-only password (client-side, not secure)
   password?: string;
 };
 
@@ -17,7 +16,10 @@ export type StageName =
   | 'Interview'
   | 'Offer'
   | 'Hired'
-  | 'Rejected';
+  | 'Rejected'
+  | 'Onboarded';
+
+export type PipelineType = 'Standard' | 'Onboarding';
 
 export type JobStatus = 'Open' | 'On Hold' | 'Closed';
 
@@ -26,10 +28,11 @@ export type Job = {
   title: string;
   department: string;
   location: string;
-  employmentType: 'Full-time' | 'Part-time' | 'Contract' | 'Internship';
+  employmentType?: 'Full-time' | 'Part-time' | 'Contract' | 'Internship';
   status: JobStatus;
   description: string;
-  requirements: string;
+  requirements?: string;
+  pipelineType: PipelineType;
   hiringManagerId?: string;
   recruiterId?: string;
   createdAt: string;
@@ -38,14 +41,14 @@ export type Job = {
 export type DocumentRef = {
   id: string;
   name: string;
-  type: string;
   size: number;
-  addedAt: string;
+  uploadedAt: string;
 };
 
 export type StageHistoryEntry = {
   stage: StageName;
-  at: string;
+  at?: string;
+  changedAt?: string;
   changedBy: string;
 };
 
@@ -54,6 +57,7 @@ export type InterviewNote = {
   content: string;
   createdAt: string;
   createdBy: string;
+  authorName?: string;
 };
 
 export type EmailLog = {
@@ -86,7 +90,8 @@ export type Candidate = {
 
 export type CustomFieldDef = {
   id: string;
-  label: string;
-  type: 'text' | 'number' | 'select' | 'date';
+  label?: string;
+  name?: string;
+  type: 'text' | 'number' | 'date' | 'select' | 'dropdown';
   options?: string[];
 };

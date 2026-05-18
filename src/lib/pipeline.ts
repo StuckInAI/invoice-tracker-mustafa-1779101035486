@@ -1,39 +1,56 @@
-import type { StageName, PipelineType } from '@/types';
+import type { PipelineType, StageName } from '@/types';
 
-export const STAGE_ORDER: StageName[] = [
+export const STANDARD_PIPELINE: StageName[] = [
   'Applied',
   'Screening',
-  'Interviews',
+  'Interview',
   'Offer',
   'Hired',
-  'Onboarded',
   'Rejected',
 ];
 
+export const ONBOARDING_PIPELINE: StageName[] = [
+  'Applied',
+  'Screening',
+  'Interview',
+  'Offer',
+  'Hired',
+  'Onboarded',
+];
+
+export const ALL_STAGES: StageName[] = [
+  'Applied',
+  'Screening',
+  'Interview',
+  'Offer',
+  'Hired',
+  'Rejected',
+  'Onboarded',
+];
+
+// Legacy alias
+export const STAGES = ALL_STAGES;
+
+export function getPipeline(type: PipelineType): StageName[] {
+  return type === 'Onboarding' ? ONBOARDING_PIPELINE : STANDARD_PIPELINE;
+}
+
 export const STAGE_COLORS: Record<StageName, string> = {
   Applied: '#6366f1',
-  Screening: '#0ea5e9',
-  Interviews: '#f59e0b',
+  Screening: '#3b82f6',
+  Interview: '#f59e0b',
   Offer: '#8b5cf6',
   Hired: '#10b981',
-  Onboarded: '#059669',
   Rejected: '#ef4444',
+  Onboarded: '#06b6d4',
 };
 
-const PIPELINE_STAGES: Record<PipelineType, StageName[]> = {
-  Standard: ['Applied', 'Screening', 'Interviews', 'Offer', 'Hired', 'Onboarded', 'Rejected'],
-  Engineering: ['Applied', 'Screening', 'Interviews', 'Offer', 'Hired', 'Onboarded', 'Rejected'],
-  Sales: ['Applied', 'Screening', 'Interviews', 'Offer', 'Hired', 'Onboarded', 'Rejected'],
-  Executive: ['Applied', 'Screening', 'Interviews', 'Offer', 'Hired', 'Onboarded', 'Rejected'],
+export const STAGE_BG: Record<StageName, string> = {
+  Applied: '#eef2ff',
+  Screening: '#eff6ff',
+  Interview: '#fffbeb',
+  Offer: '#f5f3ff',
+  Hired: '#ecfdf5',
+  Rejected: '#fef2f2',
+  Onboarded: '#ecfeff',
 };
-
-export function getStages(pipelineType?: PipelineType): StageName[] {
-  if (pipelineType && PIPELINE_STAGES[pipelineType]) {
-    return PIPELINE_STAGES[pipelineType];
-  }
-  return STAGE_ORDER;
-}
-
-export function isActiveStage(stage: StageName): boolean {
-  return stage !== 'Hired' && stage !== 'Onboarded' && stage !== 'Rejected';
-}

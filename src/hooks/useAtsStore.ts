@@ -3,7 +3,6 @@ import type {
   Candidate,
   CustomFieldDef,
   EmailLog,
-  InterviewNote,
   Job,
   StageName,
   User,
@@ -31,8 +30,6 @@ export type AtsStore = {
   deleteCustomField: (id: string) => void;
   importCandidates: (rows: Array<{ name: string; email: string; phone: string; jobTitle: string; stage: string }>) => { imported: number; skipped: number; errors: string[] };
 };
-
-export type NoteInput = InterviewNote;
 
 export const AtsContext = createContext<AtsStore | null>(null);
 

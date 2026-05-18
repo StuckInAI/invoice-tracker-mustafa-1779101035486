@@ -1,141 +1,203 @@
-import { useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, MapPin, Building, Copy, Plus } from 'lucide-react';
-import PageHeader from '@/components/PageHeader';
-import StageBadge from '@/components/StageBadge';
+import { useState, useMemo } from 'react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import { ArrowLeft, MapPin, Briefcase, Users, Copy, CheckCheck, ExternalLink } from 'lucide-react';
 import { useAts } from '@/hooks/useAtsStore';
-import { getStages } from '@/lib/pipeline';
-import type { Candidate, StageName } from '@/types';
-import styles from './JobDetailPage.module.css';
+import StageBadge from '@/components/StageBadge';
+import PageHeader from '@/components/PageHeader';
+import { getPipeline, STAGE_COLORS, STAGE_BG } from '@/lib/pipeline';
+import type { StageName } from '@/types';
 
 export default function JobDetailPage() {
   const { jobId } = useParams<{ jobId: string }>();
-  const navigate = useNavigate();
   const { jobs, candidates, moveCandidateStage } = useAts();
-  const job = jobs.find((j) => j.id === jobId);
-  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const navigate = useNavigate();
   const [copied, setCopied] = useState(false);
+  const [draggedId, setDraggedId] = useState<string | null>(null);
+  const [dragOverStage, setDragOverStage] = useState<StageName | null>(null);
 
-  if (!job) {
-    return (
-      <div>
-        <button className="btn btn-ghost" onClick={() => navigate(-1)}>
-          <ArrowLeft size={14} /> Back
-        </button>
-        <p style={{ marginTop: 24 }}>Job not found.</p>
-      </div>
-    );
-  }
+  const job = jobs.find((j) => j.id === jobId);
+  if (!job) return (
+    <div style={{ padding: 40, textAlign: 'center' }}>
+      <p>Job not found.</p>
+      <Link to="/jobs">← Back to jobs</Link>
+    </div>
+  );
 
-  const stages = getStages(job.pipelineType);
-  const jobCandidates = candidates.filter((c) => c.jobId === job.id);
+  const pipeline = getPipeline(job.pipelineType);
+  const jobCandidates = candidates.filter((c) => c.jobId === jobId);
 
-  const handleDragStart = (id: string) => setDraggingId(id);
-  const handleDragEnd = () => setDraggingId(null);
-  const handleDrop = (stage: StageName) => {
-    if (draggingId) moveCandidateStage(draggingId, stage);
-    setDraggingId(null);
+  const applyUrl = `${window.location.origin}/apply/${jobId}`;
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(applyUrl).catch(() => {});
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
-  const copyApplyLink = async () => {
-    const url = `${window.location.origin}/apply/${job.id}`;
-    try {
-      await navigator.clipboard.writeText(url);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      // ignore
-    }
+  const handleDragStart = (candidateId: string) => setDraggedId(candidateId);
+  const handleDragOver = (e: React.DragEvent, stage: StageName) => {
+    e.preventDefault();
+    setDragOverStage(stage);
   };
+  const handleDrop = (e: React.DragEvent, stage: StageName) => {
+    e.preventDefault();
+    if (draggedId) moveCandidateStage(draggedId, stage);
+    setDraggedId(null);
+    setDragOverStage(null);
+  };
+  const handleDragEnd = () => { setDraggedId(null); setDragOverStage(null); };
 
   return (
     <div>
-      <button className="btn btn-ghost" onClick={() => navigate('/jobs')} style={{ marginBottom: 12 }}>
-        <ArrowLeft size={14} /> All Jobs
-      </button>
       <PageHeader
         title={job.title}
-        subtitle={`${job.department} • ${job.location} • ${job.pipelineType} pipeline`}
+        subtitle={`${job.department} · ${job.location}`}
         actions={
-          <>
-            <button className="btn" onClick={copyApplyLink}>
-              <Copy size={14} /> {copied ? 'Copied!' : 'Copy Apply Link'}
-            </button>
-            <Link to="/candidates/new" state={{ jobId: job.id }} className="btn btn-primary">
-              <Plus size={14} /> Add Candidate
-            </Link>
-          </>
+          <Link to="/jobs" style={{
+            display: 'inline-flex', alignItems: 'center', gap: 6,
+            padding: '8px 14px', borderRadius: 8,
+            border: '1px solid var(--color-border)', background: 'white',
+            fontSize: 13, fontWeight: 500, color: 'var(--color-text)', textDecoration: 'none',
+          }}>
+            <ArrowLeft size={14} /> Back to jobs
+          </Link>
         }
       />
 
-      <div className={`card ${styles.summary}`}>
-        <div className={styles.summaryItem}>
-          <Building size={14} /> {job.department}
+      {/* Job meta */}
+      <div style={{
+        background: 'var(--color-surface)', border: '1px solid var(--color-border)',
+        borderRadius: 12, padding: '20px 24px', marginBottom: 24,
+      }}>
+        <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--color-text-muted)' }}>
+              <MapPin size={14} /> {job.location}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--color-text-muted)' }}>
+              <Briefcase size={14} /> {job.employmentType ?? 'Full-time'}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--color-text-muted)' }}>
+              <Users size={14} /> {jobCandidates.length} candidates
+            </div>
+            <span style={{
+              padding: '3px 10px', borderRadius: 999, fontSize: 12, fontWeight: 600,
+              background: job.status === 'Open' ? '#ecfdf5' : '#f3f4f6',
+              color: job.status === 'Open' ? '#10b981' : '#6b7280',
+            }}>{job.status}</span>
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              onClick={handleCopyLink}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 6,
+                padding: '7px 12px', borderRadius: 7,
+                border: '1px solid var(--color-border)', background: 'white',
+                fontSize: 12, fontWeight: 500, cursor: 'pointer', color: 'var(--color-text)',
+              }}
+            >
+              {copied ? <><CheckCheck size={13} /> Copied!</> : <><Copy size={13} /> Copy apply link</>}
+            </button>
+            <a
+              href={applyUrl}
+              target="_blank"
+              rel="noreferrer"
+              style={{
+                display: 'flex', alignItems: 'center', gap: 6,
+                padding: '7px 12px', borderRadius: 7,
+                background: 'var(--color-primary)', color: 'white',
+                fontSize: 12, fontWeight: 500, textDecoration: 'none',
+              }}
+            >
+              <ExternalLink size={13} /> Public form
+            </a>
+            <Link
+              to={`/candidates/new?jobId=${jobId}`}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 6,
+                padding: '7px 12px', borderRadius: 7,
+                background: 'var(--color-primary)', color: 'white',
+                fontSize: 12, fontWeight: 500, textDecoration: 'none',
+              }}
+            >+ Add candidate</Link>
+          </div>
         </div>
-        <div className={styles.summaryItem}>
-          <MapPin size={14} /> {job.location}
-        </div>
-        <div className={styles.summaryItem}>
-          Status: <strong style={{ marginLeft: 4 }}>{job.status}</strong>
-        </div>
-        <div className={styles.summaryItem}>
-          {jobCandidates.length} candidate{jobCandidates.length === 1 ? '' : 's'}
-        </div>
+        {job.description && (
+          <p style={{ marginTop: 14, fontSize: 13, color: 'var(--color-text-muted)', lineHeight: 1.7 }}>{job.description}</p>
+        )}
       </div>
 
-      <div className={styles.board}>
-        {stages.map((stage) => {
-          const items = jobCandidates.filter((c) => c.stage === stage);
+      {/* Kanban */}
+      <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 14 }}>Pipeline board</h3>
+      <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 12 }}>
+        {pipeline.map((stage) => {
+          const stageCandidates = jobCandidates.filter((c) => c.stage === stage);
+          const isOver = dragOverStage === stage;
           return (
             <div
               key={stage}
-              className={styles.column}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={() => handleDrop(stage)}
+              onDragOver={(e) => handleDragOver(e, stage)}
+              onDrop={(e) => handleDrop(e, stage)}
+              onDragLeave={() => setDragOverStage(null)}
+              style={{
+                minWidth: 200, width: 200, flexShrink: 0,
+                background: isOver ? '#f0f4ff' : 'var(--color-surface-alt)',
+                borderRadius: 10,
+                border: `2px ${isOver ? 'dashed #6366f1' : 'solid transparent'}`,
+                transition: 'border-color 0.15s, background 0.15s',
+                display: 'flex', flexDirection: 'column',
+              }}
             >
-              <div className={styles.columnHeader}>
-                <StageBadge stage={stage} />
-                <span className={styles.count}>{items.length}</span>
+              {/* Stage header */}
+              <div style={{
+                padding: '10px 12px 8px',
+                borderBottom: '1px solid var(--color-border)',
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: STAGE_COLORS[stage] }} />
+                  <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-text)' }}>{stage}</span>
+                </div>
+                <span style={{
+                  fontSize: 11, fontWeight: 600, padding: '1px 7px', borderRadius: 999,
+                  background: STAGE_BG[stage], color: STAGE_COLORS[stage],
+                }}>{stageCandidates.length}</span>
               </div>
-              <div className={styles.columnBody}>
-                {items.map((c) => (
-                  <CandidateCard
+
+              {/* Candidate cards */}
+              <div style={{ padding: '8px', display: 'flex', flexDirection: 'column', gap: 6, minHeight: 80 }}>
+                {stageCandidates.map((c) => (
+                  <div
                     key={c.id}
-                    candidate={c}
+                    draggable
                     onDragStart={() => handleDragStart(c.id)}
                     onDragEnd={handleDragEnd}
-                  />
+                    style={{
+                      background: 'white',
+                      border: `1px solid ${draggedId === c.id ? '#6366f1' : 'var(--color-border)'}`,
+                      borderRadius: 8, padding: '10px',
+                      cursor: 'grab', opacity: draggedId === c.id ? 0.5 : 1,
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+                    }}
+                  >
+                    <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 3 }}>{c.name}</div>
+                    <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginBottom: 6 }}>{c.source ?? 'Unknown source'}</div>
+                    <Link
+                      to={`/candidates/${c.id}`}
+                      style={{
+                        fontSize: 11, color: 'var(--color-primary)',
+                        fontWeight: 500, textDecoration: 'none',
+                      }}
+                    >View profile →</Link>
+                  </div>
                 ))}
-                {items.length === 0 && <div className={styles.emptyCol}>Drop here</div>}
+                {stageCandidates.length === 0 && (
+                  <div style={{ fontSize: 11, color: 'var(--color-text-muted)', textAlign: 'center', padding: '16px 0' }}>No candidates</div>
+                )}
               </div>
             </div>
           );
         })}
       </div>
     </div>
-  );
-}
-
-type CardProps = {
-  candidate: Candidate;
-  onDragStart: () => void;
-  onDragEnd: () => void;
-};
-
-function CandidateCard({ candidate, onDragStart, onDragEnd }: CardProps) {
-  return (
-    <Link
-      to={`/candidates/${candidate.id}`}
-      className={styles.card}
-      draggable
-      onDragStart={onDragStart}
-      onDragEnd={onDragEnd}
-    >
-      <div className={styles.cardAvatar}>{candidate.name.charAt(0)}</div>
-      <div className={styles.cardInfo}>
-        <div className={styles.cardName}>{candidate.name}</div>
-        <div className={styles.cardMeta}>{candidate.email}</div>
-      </div>
-    </Link>
   );
 }

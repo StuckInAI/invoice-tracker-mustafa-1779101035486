@@ -1,26 +1,16 @@
-const PREFIX = 'ats_';
-
-export function loadFromStorage<T>(key: string, fallback: T): T {
+export function loadState<T>(key: string): T | null {
   try {
-    const raw = localStorage.getItem(PREFIX + key);
-    if (!raw) return fallback;
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
     return JSON.parse(raw) as T;
   } catch {
-    return fallback;
+    return null;
   }
 }
 
-export function saveToStorage<T>(key: string, value: T): void {
+export function saveState<T>(key: string, state: T): void {
   try {
-    localStorage.setItem(PREFIX + key, JSON.stringify(value));
-  } catch {
-    // ignore quota errors
-  }
-}
-
-export function removeFromStorage(key: string): void {
-  try {
-    localStorage.removeItem(PREFIX + key);
+    localStorage.setItem(key, JSON.stringify(state));
   } catch {
     // ignore
   }

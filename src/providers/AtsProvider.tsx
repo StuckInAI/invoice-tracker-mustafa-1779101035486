@@ -1,9 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
-import {
-  AtsContext,
-  type AtsStore,
-} from '@/hooks/useAtsStore';
+import { AtsContext, type AtsStore } from '@/hooks/useAtsStore';
 import type {
   Candidate,
   CustomFieldDef,
@@ -26,11 +23,11 @@ type Persisted = {
   currentUserId: string | null;
 };
 
-const STORAGE_KEY = 'ats-mvp-state-v1';
+const STORAGE_KEY = 'ats-mvp-v2';
 
 function initialState(): Persisted {
   const existing = loadState<Persisted>(STORAGE_KEY);
-  if (existing) return existing;
+  if (existing && existing.users && existing.jobs) return existing;
   const seed = seedData();
   return {
     users: seed.users,
@@ -50,13 +47,7 @@ export default function AtsProvider({ children }: { children: ReactNode }) {
   const [currentUserId, setCurrentUserId] = useState<string | null>(init.currentUserId);
 
   useEffect(() => {
-    saveState<Persisted>(STORAGE_KEY, {
-      users,
-      jobs,
-      candidates,
-      customFields,
-      currentUserId,
-    });
+    saveState<Persisted>(STORAGE_KEY, { users, jobs, candidates, customFields, currentUserId });
   }, [users, jobs, candidates, customFields, currentUserId]);
 
   const currentUser = useMemo(
@@ -69,10 +60,7 @@ export default function AtsProvider({ children }: { children: ReactNode }) {
       const u = users.find(
         (x) => x.email.toLowerCase() === email.toLowerCase() && x.active && (x.password ?? 'password') === password,
       );
-      if (u) {
-        setCurrentUserId(u.id);
-        return true;
-      }
+      if (u) { setCurrentUserId(u.id); return true; }
       return false;
     },
     [users],
@@ -81,10 +69,7 @@ export default function AtsProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(() => setCurrentUserId(null), []);
 
   const addUser: AtsStore['addUser'] = (u) => {
-    setUsers((prev) => [
-      ...prev,
-      { ...u, id: uid('u'), createdAt: new Date().toISOString() },
-    ]);
+    setUsers((prev) => [...prev, { ...u, id: uid('u'), createdAt: new Date().toISOString() }]);
   };
 
   const toggleUserActive: AtsStore['toggleUserActive'] = (id) => {
@@ -111,7 +96,7 @@ export default function AtsProvider({ children }: { children: ReactNode }) {
       ...c,
       id: uid('c'),
       createdAt: now,
-      stageHistory: [{ stage: c.stage, at: now, changedBy: 'System' }],
+      stageHistory: [{ stage: c.stage, at: now, changedBy: currentUser?.name ?? 'System' }],
       notes: [],
       emails: [],
       documents: c.documents ?? [],
@@ -129,11 +114,7 @@ export default function AtsProvider({ children }: { children: ReactNode }) {
     setCandidates((prev) =>
       prev.map((c) => {
         if (c.id !== id) return c;
-        const entry: StageHistoryEntry = {
-          stage,
-          at: now,
-          changedBy: currentUser?.name ?? 'System',
-        };
+        const entry: StageHistoryEntry = { stage, at: now, changedBy: currentUser?.name ?? 'System' };
         return { ...c, stage, stageHistory: [...c.stageHistory, entry] };
       }),
     );
@@ -145,16 +126,10 @@ export default function AtsProvider({ children }: { children: ReactNode }) {
       content,
       createdAt: new Date().toISOString(),
       createdBy: currentUser?.name ?? 'System',
+      authorName: currentUser?.name ?? 'System',
     };
     setCandidates((prev) =>
-      prev.map((c) =>
-        c.id === id
-          ? {
-              ...c,
-              notes: [note, ...c.notes],
-            }
-          : c,
-      ),
+      prev.map((c) => (c.id === id ? { ...c, notes: [note, ...c.notes] } : c)),
     );
   };
 
@@ -185,7 +160,7 @@ export default function AtsProvider({ children }: { children: ReactNode }) {
     const now = new Date().toISOString();
     const newCandidates: Candidate[] = [];
     const existingEmails = new Set(candidates.map((c) => c.email.toLowerCase()));
-    const validStages: StageName[] = ['Applied', 'Screening', 'Interview', 'Offer', 'Hired', 'Rejected'];
+    const validStages: StageName[] = ['Applied', 'Screening', 'Interview', 'Offer', 'Hired', 'Rejected', 'Onboarded'];
 
     rows.forEach((row, idx) => {
       if (!row.name || !row.email) {
@@ -198,7 +173,7 @@ export default function AtsProvider({ children }: { children: ReactNode }) {
         skipped++;
         return;
       }
-      const job = jobs.find((j) => j.title.toLowerCase() === row.jobTitle.toLowerCase());
+      const job = jobs.find((j) => j.title.toLowerCase() === (row.jobTitle || '').toLowerCase());
       const stage = (validStages.includes(row.stage as StageName) ? row.stage : 'Applied') as StageName;
       newCandidates.push({
         id: uid('c'),
@@ -217,32 +192,18 @@ export default function AtsProvider({ children }: { children: ReactNode }) {
       imported++;
     });
 
-    if (newCandidates.length) {
-      setCandidates((prev) => [...newCandidates, ...prev]);
-    }
+    if (newCandidates.length) setCandidates((prev) => [...newCandidates, ...prev]);
     return { imported, skipped, errors };
   };
 
   const value: AtsStore = {
-    currentUser,
-    users,
-    jobs,
-    candidates,
-    customFields,
-    login,
-    logout,
-    addUser,
-    toggleUserActive,
-    addJob,
-    updateJob,
-    deleteJob,
-    addCandidate,
-    updateCandidate,
-    moveCandidateStage,
-    addCandidateNote,
-    addCandidateEmail,
-    addCustomField,
-    deleteCustomField,
+    currentUser, users, jobs, candidates, customFields,
+    login, logout,
+    addUser, toggleUserActive,
+    addJob, updateJob, deleteJob,
+    addCandidate, updateCandidate, moveCandidateStage,
+    addCandidateNote, addCandidateEmail,
+    addCustomField, deleteCustomField,
     importCandidates,
   };
 

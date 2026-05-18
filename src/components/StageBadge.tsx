@@ -1,14 +1,18 @@
 import type { StageName } from '@/types';
-import { STAGE_COLORS } from '@/lib/pipeline';
-import styles from './StageBadge.module.css';
+import { STAGE_COLORS, STAGE_BG } from '@/lib/pipeline';
 
-type Props = { stage: StageName };
-
-export default function StageBadge({ stage }: Props) {
-  const color = STAGE_COLORS[stage];
+export default function StageBadge({ stage }: { stage: StageName }) {
   return (
-    <span className={styles.badge} style={{ background: `${color}1a`, color }}>
-      <span className={styles.dot} style={{ background: color }} />
+    <span style={{
+      display: 'inline-flex',
+      alignItems: 'center',
+      padding: '2px 10px',
+      borderRadius: 999,
+      fontSize: 12,
+      fontWeight: 600,
+      background: STAGE_BG[stage] ?? '#f3f4f6',
+      color: STAGE_COLORS[stage] ?? '#374151',
+    }}>
       {stage}
     </span>
   );
