@@ -8,9 +8,10 @@ interface Props {
   title: string;
   children: ReactNode;
   width?: number;
+  footer?: ReactNode;
 }
 
-export default function Modal({ open, onClose, title, children, width = 520 }: Props) {
+export default function Modal({ open, onClose, title, children, width = 520, footer }: Props) {
   useEffect(() => {
     if (!open) return;
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
@@ -60,7 +61,18 @@ export default function Modal({ open, onClose, title, children, width = 520 }: P
             <X size={18} />
           </button>
         </div>
-        <div style={{ padding: '20px', overflowY: 'auto' }}>{children}</div>
+        <div style={{ padding: '20px', overflowY: 'auto', flex: 1 }}>{children}</div>
+        {footer && (
+          <div style={{
+            padding: '12px 20px',
+            borderTop: '1px solid var(--color-border)',
+            display: 'flex',
+            justifyContent: 'flex-end',
+            gap: 8,
+          }}>
+            {footer}
+          </div>
+        )}
       </div>
     </div>
   );

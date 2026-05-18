@@ -1,37 +1,35 @@
-export type EmailTemplate = {
-  id: string;
-  name: string;
+export interface EmailTemplate {
   subject: string;
   body: string;
+}
+
+export const TEMPLATES: Record<string, EmailTemplate> = {
+  'Interview Invite': {
+    subject: 'Interview Invitation – {{jobTitle}}',
+    body: 'Dear {{candidateName}},\n\nWe would like to invite you to an interview for the {{jobTitle}} position.\n\nPlease let us know your availability.\n\nBest regards,\nThe Hiring Team',
+  },
+  'Offer Letter': {
+    subject: 'Job Offer – {{jobTitle}}',
+    body: 'Dear {{candidateName}},\n\nWe are pleased to offer you the position of {{jobTitle}}.\n\nPlease review the attached offer and let us know if you have any questions.\n\nBest regards,\nThe Hiring Team',
+  },
+  'Rejection': {
+    subject: 'Update on Your Application – {{jobTitle}}',
+    body: 'Dear {{candidateName}},\n\nThank you for your interest in the {{jobTitle}} position. After careful consideration, we have decided to move forward with other candidates at this time.\n\nWe wish you the best in your search.\n\nBest regards,\nThe Hiring Team',
+  },
+  'Screening Call': {
+    subject: 'Screening Call – {{jobTitle}}',
+    body: 'Dear {{candidateName}},\n\nWe would like to schedule a brief screening call regarding your application for {{jobTitle}}.\n\nPlease reply with your preferred time.\n\nBest regards,\nThe Hiring Team',
+  },
 };
 
-export const EMAIL_TEMPLATES: EmailTemplate[] = [
-  {
-    id: 'tmpl_interview',
-    name: 'Interview Invitation',
-    subject: 'Interview Invitation — {{jobTitle}}',
-    body: `Hi {{candidateName}},\n\nThanks for your interest in the {{jobTitle}} role. We'd love to schedule an interview with you. Please reply with a few times that work this week.\n\nBest,\n{{recruiterName}}`,
-  },
-  {
-    id: 'tmpl_offer',
-    name: 'Offer Letter',
-    subject: 'Your Offer for {{jobTitle}}',
-    body: `Hi {{candidateName}},\n\nWe're thrilled to extend you an offer for the {{jobTitle}} role. Details are attached. Please let us know if you have any questions.\n\nWelcome aboard,\n{{recruiterName}}`,
-  },
-  {
-    id: 'tmpl_rejection',
-    name: 'Rejection',
-    subject: 'Update on your application',
-    body: `Hi {{candidateName}},\n\nThank you for your time and interest in the {{jobTitle}} position. After careful consideration, we've decided to move forward with other candidates. We wish you all the best.\n\nRegards,\n{{recruiterName}}`,
-  },
-];
-
-export function applyTemplate(
-  body: string,
-  vars: { candidateName: string; jobTitle: string; recruiterName: string },
-): string {
-  return body
-    .replace(/{{candidateName}}/g, vars.candidateName)
-    .replace(/{{jobTitle}}/g, vars.jobTitle)
-    .replace(/{{recruiterName}}/g, vars.recruiterName);
+export function renderTemplate(
+  template: EmailTemplate,
+  vars: Record<string, string>,
+): EmailTemplate {
+  const replace = (str: string) =>
+    str.replace(/\{\{(\w+)\}\}/g, (_, key) => vars[key] ?? `{{${key}}}`);
+  return {
+    subject: replace(template.subject),
+    body: replace(template.body),
+  };
 }
