@@ -1,33 +1,36 @@
-import type { PipelineType, StageName } from '@/types';
+import type { StageName } from '@/types';
 
-export const STANDARD_STAGES: StageName[] = [
+export const STAGE_ORDER: StageName[] = [
   'Applied',
   'Screening',
-  'Interviews',
+  'Interview',
   'Offer',
   'Hired',
   'Rejected',
 ];
 
-export const ONBOARDING_STAGES: StageName[] = [
+export const STAGE_COLORS: Record<StageName, string> = {
+  Applied: '#6366f1',
+  Screening: '#0ea5e9',
+  Interview: '#f59e0b',
+  Offer: '#8b5cf6',
+  Hired: '#10b981',
+  Rejected: '#ef4444',
+};
+
+export const ACTIVE_STAGES: StageName[] = [
   'Applied',
   'Screening',
-  'Interviews',
+  'Interview',
   'Offer',
-  'Hired',
-  'Onboarded',
 ];
 
-export function getStages(type: PipelineType): StageName[] {
-  return type === 'Onboarding' ? ONBOARDING_STAGES : STANDARD_STAGES;
+export function nextStage(stage: StageName): StageName | null {
+  const idx = STAGE_ORDER.indexOf(stage);
+  if (idx === -1 || idx >= STAGE_ORDER.length - 1) return null;
+  return STAGE_ORDER[idx + 1];
 }
 
-export const STAGE_COLORS: Record<StageName, string> = {
-  Applied: '#3b82f6',
-  Screening: '#8b5cf6',
-  Interviews: '#f59e0b',
-  Offer: '#10b981',
-  Hired: '#059669',
-  Rejected: '#ef4444',
-  Onboarded: '#0ea5e9',
-};
+export function isTerminalStage(stage: StageName): boolean {
+  return stage === 'Hired' || stage === 'Rejected';
+}
