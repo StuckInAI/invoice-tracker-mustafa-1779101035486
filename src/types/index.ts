@@ -1,4 +1,12 @@
-export type Role = 'Admin' | 'Recruiter';
+export type Role = 'Admin' | 'Recruiter' | 'Hiring Manager';
+
+export type StageName =
+  | 'Applied'
+  | 'Screening'
+  | 'Interviews'
+  | 'Offer'
+  | 'Hired'
+  | 'Rejected';
 
 export type User = {
   id: string;
@@ -10,35 +18,25 @@ export type User = {
   createdAt: string;
 };
 
-export type JobStatus = 'Open' | 'Closed';
-
-export type PipelineType = 'Standard' | 'Onboarding';
-
 export type Job = {
   id: string;
   title: string;
   department: string;
   location: string;
+  employmentType: 'Full-time' | 'Part-time' | 'Contract' | 'Internship';
+  status: 'Open' | 'On Hold' | 'Closed';
   description: string;
-  status: JobStatus;
-  pipelineType: PipelineType;
+  requirements: string;
+  hiringManagerId: string;
+  recruiterId: string;
   createdAt: string;
 };
 
-export type StageName =
-  | 'Applied'
-  | 'Screening'
-  | 'Interviews'
-  | 'Offer'
-  | 'Hired'
-  | 'Rejected'
-  | 'Onboarded';
-
-export type CustomFieldType = 'text' | 'number' | 'date' | 'dropdown';
+export type CustomFieldType = 'text' | 'number' | 'date' | 'select';
 
 export type CustomFieldDef = {
   id: string;
-  name: string;
+  label: string;
   type: CustomFieldType;
   options?: string[];
 };
@@ -51,9 +49,9 @@ export type StageHistoryEntry = {
 
 export type InterviewNote = {
   id: string;
+  content: string;
   authorId: string;
   authorName: string;
-  content: string;
   createdAt: string;
 };
 
@@ -61,35 +59,32 @@ export type EmailLog = {
   id: string;
   subject: string;
   body: string;
+  to: string;
   sentAt: string;
   sentBy: string;
-  template?: string;
 };
 
-export type Document = {
+export type CandidateDocument = {
   id: string;
   name: string;
+  type: string;
   size: number;
   uploadedAt: string;
 };
 
 export type Candidate = {
   id: string;
-  jobId: string;
   name: string;
   email: string;
   phone: string;
-  linkedin: string;
-  source: string;
+  jobId: string;
   stage: StageName;
-  customFields: Record<string, string>;
-  documents: Document[];
+  source: string;
+  resumeText?: string;
+  customFields: Record<string, string | number>;
   stageHistory: StageHistoryEntry[];
   notes: InterviewNote[];
   emails: EmailLog[];
+  documents: CandidateDocument[];
   createdAt: string;
-};
-
-export type Session = {
-  userId: string;
 };
