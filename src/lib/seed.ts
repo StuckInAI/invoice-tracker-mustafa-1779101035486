@@ -1,109 +1,80 @@
-import type { Candidate, Job, User, StageName } from '@/types';
-import { nanoid } from '@/lib/id';
+import { generateId as nanoid } from '@/lib/id';
+import type { User, Job, Candidate, StageHistoryEntry } from '@/types';
 
-const now = new Date().toISOString();
-
-const USERS: User[] = [
+export const SEED_USERS: User[] = [
   {
-    id: 'u1',
+    id: nanoid(),
     name: 'Alice Admin',
-    email: 'alice@company.com',
-    password: 'password',
+    email: 'admin@example.com',
     role: 'Admin',
     active: true,
-    createdAt: now,
+    createdAt: new Date().toISOString(),
+    passwordHash: 'admin123',
   },
   {
-    id: 'u2',
+    id: nanoid(),
     name: 'Bob Recruiter',
-    email: 'bob@company.com',
-    password: 'password',
+    email: 'recruiter@example.com',
     role: 'Recruiter',
     active: true,
-    createdAt: now,
-  },
-  {
-    id: 'u3',
-    name: 'Carol Manager',
-    email: 'carol@company.com',
-    password: 'password',
-    role: 'Hiring Manager',
-    active: true,
-    createdAt: now,
+    createdAt: new Date().toISOString(),
+    passwordHash: 'recruiter123',
   },
 ];
 
-const JOBS: Job[] = [
+export const SEED_JOBS: Job[] = [
   {
-    id: 'j1',
-    title: 'Senior Frontend Engineer',
+    id: nanoid(),
+    title: 'Frontend Engineer',
     department: 'Engineering',
     location: 'Remote',
     status: 'Open',
-    employmentType: 'Full-time',
-    pipelineType: 'Technical',
-    description: 'Build amazing UIs.',
-    requirements: '5+ years React experience.',
-    createdAt: now,
+    pipelineType: 'Engineering',
+    description: 'Build beautiful UIs.',
+    createdAt: new Date().toISOString(),
   },
   {
-    id: 'j2',
+    id: nanoid(),
     title: 'Product Manager',
     department: 'Product',
     location: 'New York, NY',
     status: 'Open',
-    employmentType: 'Full-time',
     pipelineType: 'Standard',
-    description: 'Drive product vision.',
-    requirements: '3+ years PM experience.',
-    createdAt: now,
+    description: 'Own the product roadmap.',
+    createdAt: new Date().toISOString(),
   },
   {
-    id: 'j3',
-    title: 'UX Designer',
-    department: 'Design',
+    id: nanoid(),
+    title: 'Data Analyst',
+    department: 'Data',
     location: 'San Francisco, CA',
     status: 'Open',
-    employmentType: 'Full-time',
-    pipelineType: 'Standard',
-    description: 'Design delightful experiences.',
-    requirements: 'Portfolio required.',
-    createdAt: now,
-  },
-  {
-    id: 'j4',
-    title: 'Data Analyst',
-    department: 'Analytics',
-    location: 'Remote',
-    status: 'Closed',
-    employmentType: 'Full-time',
     pipelineType: 'Standard',
     description: 'Analyze data pipelines.',
-    requirements: 'SQL proficiency required.',
-    createdAt: now,
+    createdAt: new Date().toISOString(),
   },
 ];
 
-const stages: StageName[] = ['Applied', 'Screening', 'Interview', 'Technical', 'Offer', 'Hired', 'Rejected'];
-
 function makeCandidate(
-  id: string,
   name: string,
   email: string,
-  phone: string,
   jobId: string,
-  jobTitle: string,
-  stage: StageName,
+  stage: Candidate['stage'],
+  source: string,
 ): Candidate {
+  const now = new Date().toISOString();
+  const history: StageHistoryEntry[] = [{ stage, enteredAt: now }];
   return {
-    id,
+    id: nanoid(),
     name,
     email,
-    phone,
+    phone: '',
+    linkedin: '',
     jobId,
-    jobTitle,
     stage,
-    stageHistory: [{ stage, timestamp: now, changedBy: 'Seed' }],
+    source,
+    customFields: [],
+    stageHistory: history,
     notes: [],
     emails: [],
     documents: [],
@@ -111,26 +82,20 @@ function makeCandidate(
   };
 }
 
-const CANDIDATES: Candidate[] = [
-  makeCandidate('c1', 'Diana Prince', 'diana@example.com', '555-0101', 'j1', 'Senior Frontend Engineer', 'Applied'),
-  makeCandidate('c2', 'Ethan Hunt', 'ethan@example.com', '555-0102', 'j1', 'Senior Frontend Engineer', 'Screening'),
-  makeCandidate('c3', 'Fiona Green', 'fiona@example.com', '555-0103', 'j1', 'Senior Frontend Engineer', 'Interview'),
-  makeCandidate('c4', 'George Ball', 'george@example.com', '555-0104', 'j1', 'Senior Frontend Engineer', 'Technical'),
-  makeCandidate('c5', 'Hannah Lee', 'hannah@example.com', '555-0105', 'j1', 'Senior Frontend Engineer', 'Offer'),
-  makeCandidate('c6', 'Ivan Drago', 'ivan@example.com', '555-0106', 'j2', 'Product Manager', 'Applied'),
-  makeCandidate('c7', 'Julia Roberts', 'julia@example.com', '555-0107', 'j2', 'Product Manager', 'Screening'),
-  makeCandidate('c8', 'Kevin Hart', 'kevin@example.com', '555-0108', 'j2', 'Product Manager', 'Hired'),
-  makeCandidate('c9', 'Laura Palmer', 'laura@example.com', '555-0109', 'j3', 'UX Designer', 'Applied'),
-  makeCandidate('c10', 'Mike Ross', 'mike@example.com', '555-0110', 'j3', 'UX Designer', 'Interview'),
-  makeCandidate('c11', 'Nina Simone', 'nina@example.com', '555-0111', 'j3', 'UX Designer', 'Rejected'),
-  makeCandidate('c12', 'Oscar Wilde', 'oscar@example.com', '555-0112', 'j4', 'Data Analyst', 'Hired'),
-];
+export function buildSeedCandidates(jobs: Job[]): Candidate[] {
+  if (jobs.length === 0) return [];
+  const j0 = jobs[0].id;
+  const j1 = jobs[1]?.id ?? j0;
+  const j2 = jobs[2]?.id ?? j0;
 
-export function generateSeedData() {
-  return {
-    users: USERS,
-    jobs: JOBS,
-    candidates: CANDIDATES,
-    customFields: [],
-  };
+  return [
+    makeCandidate('Jane Doe', 'jane@example.com', j0, 'Applied', 'LinkedIn'),
+    makeCandidate('John Smith', 'john@example.com', j0, 'Screening', 'Referral'),
+    makeCandidate('Emily Chen', 'emily@example.com', j0, 'Interview', 'Website'),
+    makeCandidate('Michael Brown', 'michael@example.com', j0, 'Technical', 'LinkedIn'),
+    makeCandidate('Sara Lee', 'sara@example.com', j1, 'Applied', 'Job Board'),
+    makeCandidate('David Kim', 'david@example.com', j1, 'Offer', 'Referral'),
+    makeCandidate('Anna Williams', 'anna@example.com', j2, 'Hired', 'Website'),
+    makeCandidate('Tom Harris', 'tom@example.com', j2, 'Rejected', 'LinkedIn'),
+  ];
 }

@@ -1,209 +1,235 @@
-import { useParams, Link } from 'react-router-dom';
 import { useState } from 'react';
-import { ArrowLeft, Briefcase, MapPin, Users, ChevronRight } from 'lucide-react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useAts } from '@/hooks/useAtsStore';
-import { getPipeline } from '@/lib/pipeline';
-import type { StageName } from '@/types';
 import StageBadge from '@/components/StageBadge';
 import PageHeader from '@/components/PageHeader';
 import EmptyState from '@/components/EmptyState';
+import { getPipeline } from '@/lib/pipeline';
+import { fmtDate } from '@/lib/format';
+import type { StageName } from '@/types';
+import { Users } from 'lucide-react';
 
 export default function JobDetailPage() {
   const { jobId } = useParams<{ jobId: string }>();
-  const { jobs, candidates, moveCandidateStage } = useAts();
-  const job = jobs.find((j) => j.id === jobId);
+  const navigate = useNavigate();
+  const { jobs, candidates, updateJob } = useAts();
 
-  const [view, setView] = useState<'pipeline' | 'list'>('pipeline');
+  const job = jobs.find((j) => j.id === jobId);
+  const pipeline = job ? getPipeline(job.pipelineType) : getPipeline('Standard');
+  const jobCandidates = candidates.filter((c) => c.jobId === jobId);
+
+  const [editOpen, setEditOpen] = useState(false);
+  const [editTitle, setEditTitle] = useState(job?.title ?? '');
+  const [editDept, setEditDept] = useState(job?.department ?? '');
+  const [editLoc, setEditLoc] = useState(job?.location ?? '');
+  const [editStatus, setEditStatus] = useState<Job['status']>(job?.status ?? 'Open');
+  const [editDesc, setEditDesc] = useState(job?.description ?? '');
+  const [activeStage, setActiveStage] = useState<StageName | 'All'>('All');
 
   if (!job) {
     return (
-      <div>
-        <Link to="/jobs" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--color-text-muted)', textDecoration: 'none', marginBottom: 16 }}>
-          <ArrowLeft size={14} /> Back to Jobs
-        </Link>
-        <p>Job not found.</p>
+      <div style={{ padding: 32, textAlign: 'center', color: 'var(--color-text-muted)' }}>
+        Job not found.
+        <button onClick={() => navigate('/jobs')} style={{ marginLeft: 8, cursor: 'pointer' }}>Back to Jobs</button>
       </div>
     );
   }
 
-  const pipeline = getPipeline(job.pipelineType);
-  const jobCandidates = candidates.filter((c) => c.jobId === job.id);
+  const filtered = activeStage === 'All'
+    ? jobCandidates
+    : jobCandidates.filter((c) => c.stage === activeStage);
+
+  function handleSave() {
+    updateJob(jobId!, {
+      title: editTitle.trim(),
+      department: editDept.trim(),
+      location: editLoc.trim(),
+      status: editStatus,
+      description: editDesc.trim(),
+    });
+    setEditOpen(false);
+  }
+
+  const btnStyle: React.CSSProperties = {
+    padding: '6px 14px', borderRadius: 6, border: '1px solid var(--color-border)',
+    background: 'transparent', fontSize: 13, cursor: 'pointer', color: 'var(--color-text)',
+  };
+
+  type Job = import('@/types').Job;
 
   return (
     <div>
-      <Link
-        to="/jobs"
-        style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--color-text-muted)', textDecoration: 'none', marginBottom: 16 }}
-      >
-        <ArrowLeft size={14} /> Back to Jobs
-      </Link>
+      <button onClick={() => navigate('/jobs')} style={{ ...btnStyle, marginBottom: 16, fontSize: 12 }}>← Back</button>
 
-      <PageHeader
-        title={job.title}
-        subtitle={`${job.department} · ${job.location}`}
-        actions={
-          <Link
-            to={`/apply/${job.id}`}
-            target="_blank"
-            style={{
-              padding: '7px 14px', borderRadius: 6,
-              border: '1px solid var(--color-border)',
-              fontSize: 13, color: 'var(--color-text)',
-              textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6,
-            }}
-          >
-            Public Apply Link
-          </Link>
-        }
-      />
-
-      {/* Job meta */}
-      <div style={{
-        background: 'var(--color-surface)',
-        border: '1px solid var(--color-border)',
-        borderRadius: 10,
-        padding: '14px 20px',
-        display: 'flex',
-        gap: 20,
-        flexWrap: 'wrap',
-        fontSize: 13,
-        color: 'var(--color-text-muted)',
-        marginBottom: 24,
-      }}>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <Briefcase size={14} /> {job.employmentType ?? 'Full-time'}
-        </span>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <MapPin size={14} /> {job.location}
-        </span>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <Users size={14} /> {jobCandidates.length} candidates
-        </span>
-        <span style={{
-          padding: '2px 8px', borderRadius: 999, fontSize: 11, fontWeight: 600,
-          background: job.status === 'Open' ? '#dcfce7' : '#fee2e2',
-          color: job.status === 'Open' ? '#166534' : '#991b1b',
-        }}>
-          {job.status}
-        </span>
-      </div>
-
-      {/* View toggle */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
-        {(['pipeline', 'list'] as const).map((v) => (
-          <button
-            key={v}
-            onClick={() => setView(v)}
-            style={{
-              padding: '6px 14px', borderRadius: 6, fontSize: 13,
-              border: '1px solid var(--color-border)',
-              background: view === v ? 'var(--color-primary)' : 'transparent',
-              color: view === v ? 'white' : 'var(--color-text-muted)',
-              cursor: 'pointer', fontWeight: view === v ? 600 : 400,
-            }}
-          >
-            {v.charAt(0).toUpperCase() + v.slice(1)}
-          </button>
-        ))}
-      </div>
-
-      {jobCandidates.length === 0 ? (
-        <EmptyState
-          icon={<Users size={28} />}
-          title="No candidates yet"
-          description="Share the public apply link or add candidates manually."
-        />
-      ) : view === 'pipeline' ? (
-        <div style={{ display: 'flex', gap: 14, overflowX: 'auto', paddingBottom: 12 }}>
-          {pipeline.stages.map((stage) => {
-            const stageCandidates = jobCandidates.filter((c) => c.stage === stage);
-            return (
-              <div
-                key={stage}
-                style={{
-                  minWidth: 200,
-                  background: 'var(--color-surface)',
-                  border: '1px solid var(--color-border)',
-                  borderRadius: 10,
-                  padding: 12,
-                  flex: '0 0 auto',
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-text)' }}>{stage}</span>
-                  <span style={{
-                    background: 'var(--color-surface-alt)',
-                    borderRadius: 999, fontSize: 11, fontWeight: 600,
-                    padding: '1px 7px', color: 'var(--color-text-muted)',
-                  }}>{stageCandidates.length}</span>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {stageCandidates.length === 0 ? (
-                    <div style={{ fontSize: 12, color: 'var(--color-text-muted)', textAlign: 'center', padding: '12px 0' }}>Empty</div>
-                  ) : (
-                    stageCandidates.map((c) => (
-                      <div
-                        key={c.id}
-                        style={{
-                          background: 'var(--color-bg)',
-                          border: '1px solid var(--color-border)',
-                          borderRadius: 8,
-                          padding: 10,
-                        }}
-                      >
-                        <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 4 }}>{c.name}</div>
-                        <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginBottom: 8 }}>{c.email}</div>
-                        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                          {pipeline.stages
-                            .filter((s) => s !== stage)
-                            .slice(0, 3)
-                            .map((s) => (
-                              <button
-                                key={s}
-                                onClick={() => moveCandidateStage(c.id, s as StageName)}
-                                style={{
-                                  fontSize: 10, padding: '2px 6px', borderRadius: 4,
-                                  border: '1px solid var(--color-border)',
-                                  background: 'transparent', cursor: 'pointer',
-                                  color: 'var(--color-text-muted)',
-                                }}
-                              >
-                                → {s}
-                              </button>
-                            ))}
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            );
-          })}
+      {/* Job header */}
+      <div style={{ background: 'var(--color-surface)', borderRadius: 10, padding: 20, marginBottom: 24 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16 }}>
+          <div>
+            <h1 style={{ fontSize: 20, fontWeight: 700 }}>{job.title}</h1>
+            <p style={{ color: 'var(--color-text-muted)', fontSize: 13, marginTop: 4 }}>
+              {job.department} · {job.location}
+            </p>
+            <p style={{ fontSize: 13, marginTop: 6 }}>
+              Status: <strong>{job.status}</strong> · Pipeline: <strong>{job.pipelineType}</strong>
+            </p>
+          </div>
+          <button style={btnStyle} onClick={() => {
+            setEditTitle(job.title);
+            setEditDept(job.department);
+            setEditLoc(job.location);
+            setEditStatus(job.status);
+            setEditDesc(job.description ?? '');
+            setEditOpen(true);
+          }}>Edit</button>
         </div>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {jobCandidates.map((c) => (
-            <Link
-              key={c.id}
-              to={`/candidates/${c.id}`}
+        {job.description && <p style={{ marginTop: 12, fontSize: 13, color: 'var(--color-text-muted)', lineHeight: 1.6 }}>{job.description}</p>}
+      </div>
+
+      {/* Stage filter tabs */}
+      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 20 }}>
+        <button
+          onClick={() => setActiveStage('All')}
+          style={{
+            ...btnStyle,
+            background: activeStage === 'All' ? 'var(--color-primary)' : 'transparent',
+            color: activeStage === 'All' ? 'white' : 'var(--color-text)',
+            border: activeStage === 'All' ? 'none' : '1px solid var(--color-border)',
+          }}
+        >
+          All ({jobCandidates.length})
+        </button>
+        {pipeline.stages.map((stage) => {
+          const count = jobCandidates.filter((c) => c.stage === stage).length;
+          return (
+            <button
+              key={stage}
+              onClick={() => setActiveStage(stage)}
               style={{
-                display: 'flex', alignItems: 'center', gap: 12,
-                padding: '12px 16px',
-                background: 'var(--color-surface)',
-                border: '1px solid var(--color-border)',
-                borderRadius: 8,
-                textDecoration: 'none',
-                color: 'var(--color-text)',
+                ...btnStyle,
+                background: activeStage === stage ? 'var(--color-primary)' : 'transparent',
+                color: activeStage === stage ? 'white' : 'var(--color-text)',
+                border: activeStage === stage ? 'none' : '1px solid var(--color-border)',
               }}
             >
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 600, fontSize: 13 }}>{c.name}</div>
-                <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>{c.email}</div>
+              {stage} ({count})
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Candidates table */}
+      {filtered.length === 0 ? (
+        <EmptyState
+          icon={<Users size={28} />}
+          title="No candidates"
+          description={activeStage === 'All' ? 'No candidates for this job yet.' : `No candidates in ${activeStage}.`}
+        />
+      ) : (
+        <div style={{ background: 'var(--color-surface)', borderRadius: 10, overflow: 'hidden' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+            <thead>
+              <tr style={{ borderBottom: '1px solid var(--color-border)' }}>
+                <th style={{ textAlign: 'left', padding: '10px 16px', fontWeight: 600 }}>Name</th>
+                <th style={{ textAlign: 'left', padding: '10px 16px', fontWeight: 600 }}>Email</th>
+                <th style={{ textAlign: 'left', padding: '10px 16px', fontWeight: 600 }}>Stage</th>
+                <th style={{ textAlign: 'left', padding: '10px 16px', fontWeight: 600 }}>Source</th>
+                <th style={{ textAlign: 'left', padding: '10px 16px', fontWeight: 600 }}>Applied</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((c) => (
+                <tr
+                  key={c.id}
+                  onClick={() => navigate(`/candidates/${c.id}`)}
+                  style={{ borderBottom: '1px solid var(--color-border)', cursor: 'pointer' }}
+                >
+                  <td style={{ padding: '10px 16px', fontWeight: 500 }}>{c.name}</td>
+                  <td style={{ padding: '10px 16px', color: 'var(--color-text-muted)' }}>{c.email}</td>
+                  <td style={{ padding: '10px 16px' }}><StageBadge stage={c.stage} /></td>
+                  <td style={{ padding: '10px 16px', color: 'var(--color-text-muted)' }}>{c.source ?? '—'}</td>
+                  <td style={{ padding: '10px 16px', color: 'var(--color-text-muted)' }}>{fmtDate(c.createdAt)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Edit modal */}
+      {editOpen && (
+        <div
+          onClick={() => setEditOpen(false)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 1000,
+            background: 'rgba(0,0,0,0.35)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: 'var(--color-surface)', borderRadius: 12, padding: 24,
+              width: '100%', maxWidth: 480,
+            }}
+          >
+            <h2 style={{ fontSize: 16, fontWeight: 600, marginBottom: 16 }}>Edit Job</h2>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {[
+                ['Title', editTitle, setEditTitle],
+                ['Department', editDept, setEditDept],
+                ['Location', editLoc, setEditLoc],
+              ].map(([lbl, val, setter]) => (
+                <div key={lbl as string}>
+                  <label style={{ fontSize: 13, fontWeight: 500, display: 'block', marginBottom: 4 }}>{lbl as string}</label>
+                  <input
+                    value={val as string}
+                    onChange={(e) => (setter as React.Dispatch<React.SetStateAction<string>>)(e.target.value)}
+                    style={{
+                      width: '100%', padding: '8px 12px', borderRadius: 6,
+                      border: '1px solid var(--color-border)', fontSize: 13,
+                      background: 'var(--color-surface)', boxSizing: 'border-box',
+                    }}
+                  />
+                </div>
+              ))}
+              <div>
+                <label style={{ fontSize: 13, fontWeight: 500, display: 'block', marginBottom: 4 }}>Status</label>
+                <select
+                  value={editStatus}
+                  onChange={(e) => setEditStatus(e.target.value as Job['status'])}
+                  style={{
+                    width: '100%', padding: '8px 12px', borderRadius: 6,
+                    border: '1px solid var(--color-border)', fontSize: 13,
+                    background: 'var(--color-surface)',
+                  }}
+                >
+                  <option value="Open">Open</option>
+                  <option value="Closed">Closed</option>
+                  <option value="Draft">Draft</option>
+                </select>
               </div>
-              <StageBadge stage={c.stage} />
-              <ChevronRight size={16} style={{ color: 'var(--color-text-muted)', flexShrink: 0 }} />
-            </Link>
-          ))}
+              <div>
+                <label style={{ fontSize: 13, fontWeight: 500, display: 'block', marginBottom: 4 }}>Description</label>
+                <textarea
+                  value={editDesc}
+                  onChange={(e) => setEditDesc(e.target.value)}
+                  rows={3}
+                  style={{
+                    width: '100%', padding: '8px 12px', borderRadius: 6,
+                    border: '1px solid var(--color-border)', fontSize: 13,
+                    background: 'var(--color-surface)', resize: 'vertical', boxSizing: 'border-box',
+                  }}
+                />
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 20 }}>
+              <button onClick={() => setEditOpen(false)} style={btnStyle}>Cancel</button>
+              <button
+                onClick={handleSave}
+                style={{ padding: '7px 18px', borderRadius: 6, border: 'none', background: 'var(--color-primary)', color: 'white', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+              >Save</button>
+            </div>
+          </div>
         </div>
       )}
     </div>
