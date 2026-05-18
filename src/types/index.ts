@@ -2,16 +2,40 @@ export type StageName =
   | 'Applied'
   | 'Screening'
   | 'Interview'
+  | 'Technical'
   | 'Offer'
   | 'Hired'
-  | 'Onboarded'
-  | 'Rejected';
+  | 'Rejected'
+  | 'Onboarded';
+
+export type PipelineType = 'Standard' | 'Technical' | 'Executive';
+
+export type EmploymentType = 'Full-time' | 'Part-time' | 'Contract' | 'Internship';
 
 export interface StageHistoryEntry {
   stage: StageName;
-  movedAt: string;
-  movedBy?: string;
-  note?: string;
+  timestamp: string;
+  changedBy: string;
+}
+
+export interface CustomFieldDef {
+  id: string;
+  label: string;
+  type: 'text' | 'number' | 'date' | 'select';
+  options?: string[];
+  createdAt: string;
+}
+
+export interface CustomFieldValue {
+  fieldId: string;
+  value: string | number;
+}
+
+export interface Document {
+  id: string;
+  name: string;
+  url: string;
+  uploadedAt: string;
 }
 
 export interface Note {
@@ -27,40 +51,26 @@ export interface EmailLog {
   body: string;
   sentAt: string;
   sentBy: string;
-  templateId?: string;
-}
-
-export interface Document {
-  id: string;
-  name: string;
-  url: string;
-  type: string;
-  uploadedAt: string;
-}
-
-export interface CustomFieldValue {
-  fieldId: string;
-  value: string | number | boolean;
 }
 
 export interface Candidate {
   id: string;
   name: string;
   email: string;
-  phone?: string;
+  phone: string;
   jobId: string;
   jobTitle: string;
-  currentStage: StageName;
+  stage: StageName;
   stageHistory: StageHistoryEntry[];
   notes: Note[];
   emails: EmailLog[];
   documents: Document[];
+  resumeUrl?: string;
+  linkedIn?: string;
+  source?: string;
+  tags?: string[];
   customFields?: CustomFieldValue[];
   createdAt: string;
-  source?: string;
-  linkedIn?: string;
-  resumeUrl?: string;
-  tags?: string[];
 }
 
 export interface Job {
@@ -68,38 +78,29 @@ export interface Job {
   title: string;
   department: string;
   location: string;
-  type: 'Full-time' | 'Part-time' | 'Contract' | 'Internship';
   status: 'Open' | 'Closed' | 'Draft';
+  employmentType: EmploymentType;
+  pipelineType: PipelineType;
   description?: string;
-  salaryMin?: number;
-  salaryMax?: number;
+  requirements?: string;
   createdAt: string;
-  closedAt?: string;
-  hiringManagerId?: string;
 }
 
 export interface User {
   id: string;
   name: string;
   email: string;
-  role: 'Admin' | 'Recruiter' | 'HiringManager' | 'Viewer';
+  password: string;
+  role: 'Admin' | 'Recruiter' | 'Hiring Manager';
   active: boolean;
   createdAt: string;
-  passwordHash?: string;
 }
 
-export interface CustomFieldDef {
+export interface InterviewNote {
   id: string;
-  name: string;
-  type: 'text' | 'number' | 'boolean' | 'select';
-  options?: string[];
-  required?: boolean;
-}
-
-export interface EmailTemplate {
-  id: string;
-  name: string;
-  subject: string;
-  body: string;
-  stage?: StageName;
+  candidateId: string;
+  interviewerId: string;
+  rating: number;
+  notes: string;
+  createdAt: string;
 }

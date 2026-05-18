@@ -1,211 +1,235 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { ReactNode } from 'react';
-import { AtsContext, type AtsStore } from '@/hooks/useAtsStore';
+import { useState, useEffect, type ReactNode } from 'react';
 import type {
   Candidate,
   CustomFieldDef,
+  CustomFieldValue,
   EmailLog,
   InterviewNote,
   Job,
-  StageHistoryEntry,
+  Note,
   StageName,
+  StageHistoryEntry,
   User,
 } from '@/types';
+import { AtsContext, type AtsStore } from '@/hooks/useAtsStore';
 import { loadState, saveState } from '@/lib/storage';
-import { seedData } from '@/lib/seed';
-import { uid } from '@/lib/id';
+import { generateSeedData } from '@/lib/seed';
+import { nanoid } from '@/lib/id';
 
-type Persisted = {
+const STORAGE_KEY = 'ats_state_v2';
+
+interface PersistedState {
   users: User[];
   jobs: Job[];
   candidates: Candidate[];
   customFields: CustomFieldDef[];
-  currentUserId: string | null;
-};
+}
 
-const STORAGE_KEY = 'ats-mvp-v2';
-
-function initialState(): Persisted {
-  const existing = loadState<Persisted>(STORAGE_KEY);
-  if (existing && existing.users && existing.jobs) return existing;
-  const seed = seedData();
-  return {
-    users: seed.users,
-    jobs: seed.jobs,
-    candidates: seed.candidates,
-    customFields: seed.customFields,
-    currentUserId: null,
-  };
+function getInitial(): PersistedState {
+  const saved = loadState<PersistedState>(STORAGE_KEY);
+  if (saved) return saved;
+  return generateSeedData();
 }
 
 export default function AtsProvider({ children }: { children: ReactNode }) {
-  const init = useMemo(() => initialState(), []);
-  const [users, setUsers] = useState<User[]>(init.users);
-  const [jobs, setJobs] = useState<Job[]>(init.jobs);
-  const [candidates, setCandidates] = useState<Candidate[]>(init.candidates);
-  const [customFields, setCustomFields] = useState<CustomFieldDef[]>(init.customFields);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(init.currentUserId);
+  const [state, setState] = useState<PersistedState>(getInitial);
+  const [currentUser, setCurrentUser] = useState<User | null>(() => {
+    const id = sessionStorage.getItem('ats_user_id');
+    if (!id) return null;
+    const s = loadState<PersistedState>(STORAGE_KEY);
+    return s?.users.find((u) => u.id === id) ?? null;
+  });
 
   useEffect(() => {
-    saveState<Persisted>(STORAGE_KEY, { users, jobs, candidates, customFields, currentUserId });
-  }, [users, jobs, candidates, customFields, currentUserId]);
+    saveState(STORAGE_KEY, state);
+  }, [state]);
 
-  const currentUser = useMemo(
-    () => users.find((u) => u.id === currentUserId) ?? null,
-    [users, currentUserId],
-  );
-
-  const login = useCallback(
-    (email: string, password: string) => {
-      const u = users.find(
-        (x) => x.email.toLowerCase() === email.toLowerCase() && x.active && (x.password ?? 'password') === password,
-      );
-      if (u) { setCurrentUserId(u.id); return true; }
-      return false;
-    },
-    [users],
-  );
-
-  const logout = useCallback(() => setCurrentUserId(null), []);
-
-  const addUser: AtsStore['addUser'] = (u) => {
-    setUsers((prev) => [...prev, { ...u, id: uid('u'), createdAt: new Date().toISOString() }]);
+  const login = (email: string, password: string): boolean => {
+    const user = state.users.find(
+      (x) => x.email.toLowerCase() === email.toLowerCase() && x.active && (x.password ?? 'password') === password,
+    );
+    if (!user) return false;
+    setCurrentUser(user);
+    sessionStorage.setItem('ats_user_id', user.id);
+    return true;
   };
 
-  const toggleUserActive: AtsStore['toggleUserActive'] = (id) => {
-    setUsers((prev) => prev.map((u) => (u.id === id ? { ...u, active: !u.active } : u)));
+  const logout = () => {
+    setCurrentUser(null);
+    sessionStorage.removeItem('ats_user_id');
   };
 
-  const addJob: AtsStore['addJob'] = (j) => {
-    const job: Job = { ...j, id: uid('j'), createdAt: new Date().toISOString() };
-    setJobs((prev) => [job, ...prev]);
+  const addUser = (u: Omit<User, 'id' | 'createdAt'>) => {
+    const user: User = { ...u, id: nanoid(), createdAt: new Date().toISOString() };
+    setState((s) => ({ ...s, users: [...s.users, user] }));
+  };
+
+  const toggleUserActive = (id: string) => {
+    setState((s) => ({
+      ...s,
+      users: s.users.map((u) => (u.id === id ? { ...u, active: !u.active } : u)),
+    }));
+  };
+
+  const addJob = (j: Omit<Job, 'id' | 'createdAt'>): Job => {
+    const job: Job = { ...j, id: nanoid(), createdAt: new Date().toISOString() };
+    setState((s) => ({ ...s, jobs: [...s.jobs, job] }));
     return job;
   };
 
-  const updateJob: AtsStore['updateJob'] = (id, patch) => {
-    setJobs((prev) => prev.map((j) => (j.id === id ? { ...j, ...patch } : j)));
+  const updateJob = (id: string, patch: Partial<Job>) => {
+    setState((s) => ({ ...s, jobs: s.jobs.map((j) => (j.id === id ? { ...j, ...patch } : j)) }));
   };
 
-  const deleteJob: AtsStore['deleteJob'] = (id) => {
-    setJobs((prev) => prev.filter((j) => j.id !== id));
+  const deleteJob = (id: string) => {
+    setState((s) => ({ ...s, jobs: s.jobs.filter((j) => j.id !== id) }));
   };
 
-  const addCandidate: AtsStore['addCandidate'] = (c) => {
+  const addCandidate = (
+    c: Omit<Candidate, 'id' | 'createdAt' | 'stageHistory' | 'notes' | 'emails' | 'documents'> & { documents?: Candidate['documents'] },
+  ): Candidate => {
     const now = new Date().toISOString();
     const candidate: Candidate = {
       ...c,
-      id: uid('c'),
+      id: nanoid(),
       createdAt: now,
-      stageHistory: [{ stage: c.stage, at: now, changedBy: currentUser?.name ?? 'System' }],
+      documents: c.documents ?? [],
       notes: [],
       emails: [],
-      documents: c.documents ?? [],
+      stageHistory: [{ stage: c.stage, timestamp: now, changedBy: currentUser?.name ?? 'System' }],
     };
-    setCandidates((prev) => [candidate, ...prev]);
+    setState((s) => ({ ...s, candidates: [...s.candidates, candidate] }));
     return candidate;
   };
 
-  const updateCandidate: AtsStore['updateCandidate'] = (id, patch) => {
-    setCandidates((prev) => prev.map((c) => (c.id === id ? { ...c, ...patch } : c)));
+  const updateCandidate = (id: string, patch: Partial<Candidate>) => {
+    setState((s) => ({
+      ...s,
+      candidates: s.candidates.map((c) => (c.id === id ? { ...c, ...patch } : c)),
+    }));
   };
 
-  const moveCandidateStage: AtsStore['moveCandidateStage'] = (id, stage) => {
+  const moveCandidateStage = (id: string, stage: StageName) => {
     const now = new Date().toISOString();
-    setCandidates((prev) =>
-      prev.map((c) => {
-        if (c.id !== id) return c;
-        const entry: StageHistoryEntry = { stage, at: now, changedBy: currentUser?.name ?? 'System' };
-        return { ...c, stage, stageHistory: [...c.stageHistory, entry] };
-      }),
-    );
+    const entry: StageHistoryEntry = { stage, timestamp: now, changedBy: currentUser?.name ?? 'System' };
+    setState((s) => ({
+      ...s,
+      candidates: s.candidates.map((c) =>
+        c.id === id
+          ? { ...c, stage, stageHistory: [...c.stageHistory, entry] }
+          : c,
+      ),
+    }));
   };
 
-  const addCandidateNote: AtsStore['addCandidateNote'] = (id, content) => {
-    const note: InterviewNote = {
-      id: uid('n'),
+  const addCandidateNote = (id: string, content: string) => {
+    const note: Note = {
+      id: nanoid(),
       content,
       createdAt: new Date().toISOString(),
       createdBy: currentUser?.name ?? 'System',
-      authorName: currentUser?.name ?? 'System',
     };
-    setCandidates((prev) =>
-      prev.map((c) => (c.id === id ? { ...c, notes: [note, ...c.notes] } : c)),
-    );
+    setState((s) => ({
+      ...s,
+      candidates: s.candidates.map((c) =>
+        c.id === id ? { ...c, notes: [...c.notes, note] } : c,
+      ),
+    }));
   };
 
-  const addCandidateEmail: AtsStore['addCandidateEmail'] = (id, email) => {
+  const addCandidateEmail = (id: string, email: Omit<EmailLog, 'id' | 'sentAt' | 'sentBy'>) => {
     const log: EmailLog = {
-      id: uid('e'),
       ...email,
+      id: nanoid(),
       sentAt: new Date().toISOString(),
       sentBy: currentUser?.name ?? 'System',
     };
-    setCandidates((prev) =>
-      prev.map((c) => (c.id === id ? { ...c, emails: [log, ...c.emails] } : c)),
-    );
+    setState((s) => ({
+      ...s,
+      candidates: s.candidates.map((c) =>
+        c.id === id ? { ...c, emails: [...c.emails, log] } : c,
+      ),
+    }));
   };
 
-  const addCustomField: AtsStore['addCustomField'] = (f) => {
-    setCustomFields((prev) => [...prev, { ...f, id: uid('cf') }]);
+  const addCustomField = (f: Omit<CustomFieldDef, 'id'>) => {
+    const field: CustomFieldDef = { ...f, id: nanoid() };
+    setState((s) => ({ ...s, customFields: [...s.customFields, field] }));
   };
 
-  const deleteCustomField: AtsStore['deleteCustomField'] = (id) => {
-    setCustomFields((prev) => prev.filter((f) => f.id !== id));
+  const deleteCustomField = (id: string) => {
+    setState((s) => ({ ...s, customFields: s.customFields.filter((f) => f.id !== id) }));
   };
 
-  const importCandidates: AtsStore['importCandidates'] = (rows) => {
+  const importCandidates = (
+    rows: Array<{ name: string; email: string; phone: string; jobTitle: string; stage: string }>,
+  ): { imported: number; skipped: number; errors: string[] } => {
     let imported = 0;
     let skipped = 0;
     const errors: string[] = [];
     const now = new Date().toISOString();
-    const newCandidates: Candidate[] = [];
-    const existingEmails = new Set(candidates.map((c) => c.email.toLowerCase()));
-    const validStages: StageName[] = ['Applied', 'Screening', 'Interview', 'Offer', 'Hired', 'Rejected', 'Onboarded'];
 
-    rows.forEach((row, idx) => {
+    const newCandidates: Candidate[] = [];
+    for (const row of rows) {
       if (!row.name || !row.email) {
-        errors.push(`Row ${idx + 1}: missing name or email`);
         skipped++;
-        return;
+        errors.push(`Skipped row: missing name or email`);
+        continue;
       }
-      if (existingEmails.has(row.email.toLowerCase())) {
-        errors.push(`Row ${idx + 1}: duplicate email ${row.email}`);
+      const exists = state.candidates.some((c) => c.email.toLowerCase() === row.email.toLowerCase());
+      if (exists) {
         skipped++;
-        return;
+        errors.push(`Skipped ${row.email}: already exists`);
+        continue;
       }
-      const job = jobs.find((j) => j.title.toLowerCase() === (row.jobTitle || '').toLowerCase());
-      const stage = (validStages.includes(row.stage as StageName) ? row.stage : 'Applied') as StageName;
-      newCandidates.push({
-        id: uid('c'),
+      const stage = (row.stage as StageName) || 'Applied';
+      const candidate: Candidate = {
+        id: nanoid(),
         name: row.name,
         email: row.email,
-        phone: row.phone || undefined,
-        jobId: job?.id,
+        phone: row.phone ?? '',
+        jobTitle: row.jobTitle ?? '',
+        jobId: '',
         stage,
-        documents: [],
+        createdAt: now,
         notes: [],
         emails: [],
-        stageHistory: [{ stage, at: now, changedBy: 'CSV Import' }],
-        createdAt: now,
-      });
-      existingEmails.add(row.email.toLowerCase());
+        documents: [],
+        stageHistory: [{ stage, timestamp: now, changedBy: 'CSV Import' }],
+      };
+      newCandidates.push(candidate);
       imported++;
-    });
+    }
 
-    if (newCandidates.length) setCandidates((prev) => [...newCandidates, ...prev]);
+    if (newCandidates.length > 0) {
+      setState((s) => ({ ...s, candidates: [...s.candidates, ...newCandidates] }));
+    }
+
     return { imported, skipped, errors };
   };
 
-  const value: AtsStore = {
-    currentUser, users, jobs, candidates, customFields,
-    login, logout,
-    addUser, toggleUserActive,
-    addJob, updateJob, deleteJob,
-    addCandidate, updateCandidate, moveCandidateStage,
-    addCandidateNote, addCandidateEmail,
-    addCustomField, deleteCustomField,
+  const store: AtsStore = {
+    currentUser,
+    users: state.users,
+    jobs: state.jobs,
+    candidates: state.candidates,
+    customFields: state.customFields,
+    login,
+    logout,
+    addUser,
+    toggleUserActive,
+    addJob,
+    updateJob,
+    deleteJob,
+    addCandidate,
+    updateCandidate,
+    moveCandidateStage,
+    addCandidateNote,
+    addCandidateEmail,
+    addCustomField,
+    deleteCustomField,
     importCandidates,
   };
 
-  return <AtsContext.Provider value={value}>{children}</AtsContext.Provider>;
+  return <AtsContext.Provider value={store}>{children}</AtsContext.Provider>;
 }
